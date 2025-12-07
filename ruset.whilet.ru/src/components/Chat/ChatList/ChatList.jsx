@@ -481,6 +481,24 @@ export function ChatList({
     return preview;
   };
 
+  useEffect(() => {
+    if (!selectedChatId) return;
+
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === selectedChatId
+          ? {
+              ...chat,
+              unreadCount: 0,
+              lastMessage: chat.lastMessage
+                ? { ...chat.lastMessage, is_read: true }
+                : chat.lastMessage,
+            }
+          : chat
+      )
+    );
+  }, [selectedChatId]);
+
   // Сортировка чатов
   const sortedChats = (
     Array.isArray(filteredChats) ? [...filteredChats] : []
