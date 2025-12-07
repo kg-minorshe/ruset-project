@@ -591,28 +591,21 @@ class SSEManager {
   async checkPinUpdates(connection, chatId, lastCheck) {
     try {
       const [pinUpdates] = await this.db.execute(
-        `SELECT message_id, created_at
-                 FROM updates
+        `SELECT id AS message_id, is_pinned, updated_at
+                 FROM messages
                  WHERE chat_id = ?
-                 AND type = 'message_pin'
-                 AND created_at > ?`,
+                 AND is_edited = 0
+                 AND updated_at > ?
+                 AND updated_at > created_at`,
         [chatId, lastCheck]
       );
 
       for (const pinUpdate of pinUpdates) {
-        const [messages] = await this.db.execute(
-          `SELECT is_pinned, updated_at FROM messages WHERE id = ?`,
-          [pinUpdate.message_id]
-        );
-
-        const message = messages[0];
-        if (!message) continue;
-
         this.sendSSE(connection.res, "message_pinned", {
           message_id: pinUpdate.message_id,
           chat_id: chatId,
-          is_pinned: Boolean(message.is_pinned),
-          updated_at: message.updated_at,
+          is_pinned: Boolean(pinUpdate.is_pinned),
+          updated_at: pinUpdate.updated_at,
         });
       }
     } catch (error) {
