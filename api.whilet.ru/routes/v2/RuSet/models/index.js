@@ -235,11 +235,30 @@ const Messages = {
   async findByChatId(chatId, options = {}) {
     const limit = options.limit || 50;
     const beforeId = options.beforeId || Number.MAX_SAFE_INTEGER;
+    const userId = options.userId || null;
+
+    if (userId) {
+      const [rows] = await poolRuSet.query(
+        `SELECT m.*,
+                CASE
+                  WHEN m.user_id = ? THEN 1
+                  WHEN mv.id IS NOT NULL THEN 1
+                  ELSE 0
+                END AS is_read
+         FROM messages m
+         LEFT JOIN message_views mv ON mv.message_id = m.id AND mv.user_id = ?
+         WHERE m.chat_id = ? AND m.id < ?
+         ORDER BY m.id DESC
+         LIMIT ?`,
+        [userId, userId, chatId, beforeId, limit + 1]
+      );
+      return rows;
+    }
 
     const [rows] = await poolRuSet.query(
-      `SELECT * FROM messages 
-       WHERE chat_id = ? AND id < ? 
-       ORDER BY id DESC 
+      `SELECT * FROM messages
+       WHERE chat_id = ? AND id < ?
+       ORDER BY id DESC
        LIMIT ?`,
       [chatId, beforeId, limit + 1]
     );
@@ -302,13 +321,45 @@ const Messages = {
 
   async countUnread(chatId, excludeUserId) {
     const [rows] = await poolRuSet.query(
-      "SELECT COUNT(*) as count FROM messages WHERE chat_id = ? AND is_read = 0 AND user_id != ?",
-      [chatId, excludeUserId]
+      `SELECT COUNT(DISTINCT m.id) as count
+       FROM messages m
+       LEFT JOIN message_views mv ON mv.message_id = m.id AND mv.user_id = ?
+       WHERE m.chat_id = ? AND m.user_id != ? AND mv.id IS NULL`,
+      [excludeUserId, chatId, excludeUserId]
     );
     return rows[0]?.count || 0;
   },
 
-  async getLastMessage(chatId) {
+  async markAsRead(chatId, excludeUserId) {
+    await poolRuSet.query(
+      `INSERT INTO message_views (message_id, user_id, viewed_at)
+       SELECT m.id, ?, UNIX_TIMESTAMP()
+       FROM messages m
+       LEFT JOIN message_views mv ON mv.message_id = m.id AND mv.user_id = ?
+       WHERE m.chat_id = ? AND m.user_id != ? AND mv.id IS NULL`,
+      [excludeUserId, excludeUserId, chatId, excludeUserId]
+    );
+  },
+
+  async getLastMessage(chatId, userId = null) {
+    if (userId) {
+      const [rows] = await poolRuSet.query(
+        `SELECT m.*,
+                CASE
+                  WHEN m.user_id = ? THEN 1
+                  WHEN mv.id IS NOT NULL THEN 1
+                  ELSE 0
+                END AS is_read
+         FROM messages m
+         LEFT JOIN message_views mv ON mv.message_id = m.id AND mv.user_id = ?
+         WHERE m.chat_id = ?
+         ORDER BY m.created_at DESC
+         LIMIT 1`,
+        [userId, userId, chatId]
+      );
+      return rows[0] || null;
+    }
+
     const [rows] = await poolRuSet.query(
       "SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 1",
       [chatId]
