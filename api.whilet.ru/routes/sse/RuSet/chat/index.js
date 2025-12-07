@@ -460,7 +460,7 @@ class SSEManager {
             }
           }
         }
-    } catch (error) {
+    }} catch (error) {
       console.error("Ошибка проверки сообщений:", error);
     }
   }
