@@ -524,16 +524,31 @@ class SSEManager {
     try {
       // Проверяем записи в updates о реакциях
       const [reactionUpdates] = await this.db.execute(
-        `SELECT DISTINCT message_id 
-             FROM updates 
-             WHERE chat_id = ? 
-             AND type = 'message_reactions' 
+        `SELECT DISTINCT message_id
+             FROM updates
+             WHERE chat_id = ?
+             AND type = 'message_reactions'
              AND created_at > ?`,
         [chatId, lastCheck]
       );
 
-      for (const row of reactionUpdates) {
-        await this.sendReactionUpdate(connection, chatId, row.message_id);
+      // Дополнительно проверяем свежие записи реакций напрямую
+      const [recentReactionMessages] = await this.db.execute(
+        `SELECT DISTINCT mr.message_id
+             FROM message_reactions mr
+             JOIN messages m ON mr.message_id = m.id
+             WHERE m.chat_id = ?
+             AND mr.created_at > ?`,
+        [chatId, lastCheck]
+      );
+
+      const messageIds = new Set([
+        ...reactionUpdates.map((row) => row.message_id),
+        ...recentReactionMessages.map((row) => row.message_id),
+      ]);
+
+      for (const messageId of messageIds) {
+        await this.sendReactionUpdate(connection, chatId, messageId);
       }
     } catch (error) {
       console.error("Ошибка проверки реакций:", error);
