@@ -432,6 +432,15 @@ class SSEManager {
                 type: "new_message",
                 data: formattedMessage,
               });
+
+              if (connection.userId !== message.user_id) {
+                await this.markMessageAsViewed(
+                  connId,
+                  chatId,
+                  message.id,
+                  connection.userId
+                );
+              }
             }
           }
         }

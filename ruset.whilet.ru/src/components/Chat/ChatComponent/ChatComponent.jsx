@@ -1561,18 +1561,27 @@ export function ChatComponent({
         lastMessage.login === currentUser.login
       ) {
         const container = messagesContainerRef.current;
+        const scrollToLatest = () => {
+          if (container && isMountedRef.current) {
+            container.scrollTop = container.scrollHeight;
+            scheduleVisibleCollection();
+          }
+        };
 
         if (chatMessagesLoading) {
-          setTimeout(() => {
-            if (container && isMountedRef.current) {
-              container.scrollTop = container.scrollHeight;
-            }
-          }, 100);
-          return;
+          setTimeout(scrollToLatest, 100);
+        } else {
+          requestAnimationFrame(scrollToLatest);
         }
       }
     }
-  }, [messages, isChatReady, chatMessagesLoading, currentUser?.login]);
+  }, [
+    messages,
+    isChatReady,
+    chatMessagesLoading,
+    currentUser?.login,
+    scheduleVisibleCollection,
+  ]);
 
   const loadOlderMessages = useCallback(async () => {
     const container = messagesContainerRef.current;
