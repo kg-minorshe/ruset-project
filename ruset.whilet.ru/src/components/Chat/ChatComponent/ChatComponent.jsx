@@ -620,6 +620,12 @@ export function ChatComponent({
     [currentUser?.id]
   );
 
+  const updateMessageById = useCallback((messageId, updater) => {
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? updater(msg) : msg))
+    );
+  }, []);
+
   const handleSSEMessage = useCallback(
     (event, data) => {
       if (
@@ -873,18 +879,23 @@ export function ChatComponent({
           break;
 
         case "message_edited":
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === data.message_id
-                ? {
-                    ...msg,
-                    text: data.text,
-                    is_edited: true,
-                    updated_at: data.updated_at,
-                  }
-                : msg
-            )
-          );
+        case "message_updated":
+          updateMessageById(data.message_id, (msg) => ({
+            ...msg,
+            text: data.text ?? msg.text,
+            is_edited: data.is_edited ?? true,
+            is_pinned:
+              typeof data.is_pinned === "boolean" ? data.is_pinned : msg.is_pinned,
+            updated_at: data.updated_at ?? msg.updated_at,
+          }));
+          break;
+
+        case "message_pinned":
+          updateMessageById(data.message_id, (msg) => ({
+            ...msg,
+            is_pinned: data.is_pinned,
+            updated_at: data.updated_at ?? msg.updated_at,
+          }));
           break;
 
         case "message_deleted":
@@ -912,6 +923,7 @@ export function ChatComponent({
       isChatInViewport,
       queueViewedMessages,
       dispatchLastMessageStatus,
+      updateMessageById,
     ]
   );
 
@@ -1089,6 +1101,24 @@ export function ChatComponent({
           handleSSEMessage("message_edited", data);
         } catch (error) {
           console.error("Ошибка парсинга message_edited:", error);
+        }
+      });
+
+      eventSource.addEventListener("message_updated", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handleSSEMessage("message_updated", data);
+        } catch (error) {
+          console.error("Ошибка парсинга message_updated:", error);
+        }
+      });
+
+      eventSource.addEventListener("message_pinned", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handleSSEMessage("message_pinned", data);
+        } catch (error) {
+          console.error("Ошибка парсинга message_pinned:", error);
         }
       });
 
