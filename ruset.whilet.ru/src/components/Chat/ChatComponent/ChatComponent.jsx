@@ -803,10 +803,42 @@ export function ChatComponent({
               const messageId = String(msg.id);
               if (messageId !== targetId) return msg;
 
-              // Полностью заменяем реакции на актуальные с сервера
+              const normalizedUpdates = normalizeReactions(data.reactions);
+
+              // Обновляем только пришедшие реакции, не затирая существующие
+              const mergedReactions = { ...(msg.reactions || {}) };
+
+              Object.entries(normalizedUpdates).forEach(([emoji, reaction]) => {
+                if (reaction.count <= 0) {
+                  delete mergedReactions[emoji];
+                  return;
+                }
+
+                const existing = mergedReactions[emoji] || {
+                  count: 0,
+                  users: [],
+                  hasReacted: false,
+                };
+
+                mergedReactions[emoji] = {
+                  count:
+                    typeof reaction.count === "number"
+                      ? reaction.count
+                      : existing.count,
+                  users:
+                    reaction.users && reaction.users.length > 0
+                      ? reaction.users
+                      : existing.users,
+                  hasReacted:
+                    typeof reaction.hasReacted === "boolean"
+                      ? reaction.hasReacted
+                      : existing.hasReacted,
+                };
+              });
+
               return {
                 ...msg,
-                reactions: normalizeReactions(data.reactions),
+                reactions: mergedReactions,
               };
             })
           );
