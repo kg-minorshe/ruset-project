@@ -805,16 +805,35 @@ export function ChatComponent({
 
               const normalizedUpdates = normalizeReactions(data.reactions);
 
-              // Обновляем только те реакции, что пришли с сервера,
-              // сохраняя остальные, чтобы не терять уже существующие
-              const mergedReactions = { ...msg.reactions };
+              // Обновляем только пришедшие реакции, не затирая существующие
+              const mergedReactions = { ...(msg.reactions || {}) };
 
               Object.entries(normalizedUpdates).forEach(([emoji, reaction]) => {
                 if (reaction.count <= 0) {
                   delete mergedReactions[emoji];
-                } else {
-                  mergedReactions[emoji] = reaction;
+                  return;
                 }
+
+                const existing = mergedReactions[emoji] || {
+                  count: 0,
+                  users: [],
+                  hasReacted: false,
+                };
+
+                mergedReactions[emoji] = {
+                  count:
+                    typeof reaction.count === "number"
+                      ? reaction.count
+                      : existing.count,
+                  users:
+                    reaction.users && reaction.users.length > 0
+                      ? reaction.users
+                      : existing.users,
+                  hasReacted:
+                    typeof reaction.hasReacted === "boolean"
+                      ? reaction.hasReacted
+                      : existing.hasReacted,
+                };
               });
 
               return {
