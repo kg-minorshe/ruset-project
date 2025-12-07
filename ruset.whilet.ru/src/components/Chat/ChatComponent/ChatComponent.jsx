@@ -300,48 +300,6 @@ export function ChatComponent({
     }
   }, [firstUnreadMessageId]);
 
-  // Функция для отметки всех сообщений как просмотренных
-  const markAllAsViewed = useCallback(async () => {
-    if (!connectionId || !chatInfo?.id) return;
-
-    try {
-      const unreadMessages = messages.filter(
-        (msg) => !msg.is_read && msg.user_id !== currentUser.id
-      );
-
-      if (unreadMessages.length === 0) return;
-
-      const response = await httpRSCap(
-        process.env.NEXT_PUBLIC_URL_API_NODE +
-          "/sse/ruset/chat/mark-all-viewed",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            connectionId: connectionId,
-            chat_id: chatInfo.id,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log(`✅ Все сообщения отмечены как просмотренные`);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.user_id !== currentUser.id ? { ...m, is_read: true } : m
-          )
-        );
-        setUnreadCount(0);
-        setShowUnreadBadge(false);
-      }
-    } catch (error) {
-      console.error("Ошибка отметки всех сообщений как просмотренных:", error);
-    }
-  }, [connectionId, chatInfo?.id, messages, currentUser?.id]);
-
   // Отслеживание прокрутки для обновления счетчика
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -350,18 +308,11 @@ export function ChatComponent({
     const handleScroll = () => {
       updateUnreadCount();
       scheduleVisibleCollection();
-
-      const scrollBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight;
-
-      if (scrollBottom < 50) {
-        markAllAsViewed();
-      }
     };
 
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
-  }, [updateUnreadCount, markAllAsViewed, scheduleVisibleCollection]);
+  }, [updateUnreadCount, scheduleVisibleCollection]);
 
   const shouldScrollToBottom = useCallback(
     (newMessage) => {
@@ -389,7 +340,7 @@ export function ChatComponent({
           if (messagesContainerRef.current && isMountedRef.current) {
             messagesContainerRef.current.scrollTop =
               messagesContainerRef.current.scrollHeight;
-            markAllAsViewed();
+            scheduleVisibleCollection();
           }
         }, 50);
       } else {
@@ -398,7 +349,12 @@ export function ChatComponent({
         }
       }
     },
-    [shouldScrollToBottom, markAllAsViewed, updateUnreadCount, currentUser?.id]
+    [
+      shouldScrollToBottom,
+      scheduleVisibleCollection,
+      updateUnreadCount,
+      currentUser?.id,
+    ]
   );
 
   const closeSSE = useCallback(() => {
