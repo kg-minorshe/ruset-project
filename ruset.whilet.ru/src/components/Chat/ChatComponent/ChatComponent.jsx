@@ -213,6 +213,8 @@ export function ChatComponent({
     const container = messagesContainerRef.current;
     if (!container) return;
 
+    if (document.hidden || !document.hasFocus()) return;
+
     const containerRect = container.getBoundingClientRect();
     const unreadMessages = messages.filter(
       (msg) => !msg.is_read && msg.user_id !== currentUser.id
@@ -314,6 +316,23 @@ export function ChatComponent({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [updateUnreadCount, scheduleVisibleCollection]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        scheduleVisibleCollection();
+        updateUnreadCount();
+      }
+    };
+
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [scheduleVisibleCollection, updateUnreadCount]);
+
   const shouldScrollToBottom = useCallback(
     (newMessage) => {
       if (!messagesContainerRef.current) return false;
@@ -325,12 +344,10 @@ export function ChatComponent({
 
       return (
         isNearBottom &&
-        (newMessage.sender === "me" ||
-          newMessage.login === currentUser.login ||
-          messages.length === 0)
+        (newMessage.sender === "me" || newMessage.user_id === currentUser.id)
       );
     },
-    [messages.length, currentUser?.login]
+    [currentUser?.id]
   );
 
   const scrollToBottomIfNeeded = useCallback(
