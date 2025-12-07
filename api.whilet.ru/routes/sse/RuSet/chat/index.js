@@ -626,6 +626,22 @@ class SSEManager {
     }
   }
 
+  async broadcastViewUpdates(chatId, messageIds) {
+    const ids = Array.isArray(messageIds) ? messageIds : [messageIds];
+    const chatKey = parseInt(chatId);
+    if (Number.isNaN(chatKey) || !this.chatRooms.has(chatKey)) return;
+
+    const connections = this.chatRooms.get(chatKey);
+    for (const messageId of ids) {
+      for (const connId of connections) {
+        const connection = this.connections.get(connId);
+        if (connection) {
+          await this.sendViewUpdate(connection, chatId, messageId);
+        }
+      }
+    }
+  }
+
   async checkForChatListUpdates() {
     try {
       if (this.chatListConnections.size === 0) return;
@@ -904,12 +920,14 @@ class SSEManager {
       const timestamp = Math.floor(Date.now() / 1000);
 
       await this.db.execute(
-        `INSERT INTO message_views (message_id, user_id, viewed_at) 
+        `INSERT INTO message_views (message_id, user_id, viewed_at)
                  VALUES (?, ?, ?)`,
         [messageId, userId, timestamp]
       );
 
       await this.updateChatListForParticipants(chatId);
+
+      await this.broadcastViewUpdates(chatId, messageId);
 
       return true;
     } catch (error) {
@@ -958,6 +976,8 @@ class SSEManager {
 
       await this.updateChatListForParticipants(chatId);
 
+      await this.broadcastViewUpdates(chatId, idsToInsert);
+
       return true;
     } catch (error) {
       console.error("Ошибка массовой отметки сообщений как просмотренных:", error);
@@ -988,13 +1008,16 @@ class SSEManager {
 
       for (const msg of unviewedMessages) {
         await this.db.execute(
-          `INSERT INTO message_views (message_id, user_id, viewed_at) 
+          `INSERT INTO message_views (message_id, user_id, viewed_at)
                      VALUES (?, ?, ?)`,
           [msg.id, userId, timestamp]
         );
       }
 
       await this.updateChatListForParticipants(chatId);
+
+      const insertedIds = unviewedMessages.map((msg) => msg.id);
+      await this.broadcastViewUpdates(chatId, insertedIds);
 
       return true;
     } catch (error) {
@@ -1066,9 +1089,22 @@ const sseManager = new SSEManager(Vostok1);
 
 // Endpoints
 router.get("/connect", async (req, res, next) => {
-  const userId = req.query.user_id || req.user?.id || null;
-  const connectionId = uuidv4();
   const v1 = new Vostok1(req, res, next);
+  let userId = req.query.user_id || req.user?.id || null;
+
+  if (!userId) {
+    const hasSession = await v1.auth.checkSession();
+    if (!hasSession) {
+      return res.status(401).json({ error: "User ID required" });
+    }
+
+    userId = await v1.auth.getCurrentUserID();
+    if (!userId) {
+      return res.status(401).json({ error: "User ID required" });
+    }
+  }
+
+  const connectionId = uuidv4();
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -1092,7 +1128,7 @@ router.get("/connect", async (req, res, next) => {
       chat_id,
       lastMsgId,
       await v1.auth.checkSession(),
-      await v1.auth.getCurrentUserID()
+      userId
     );
   }
 
