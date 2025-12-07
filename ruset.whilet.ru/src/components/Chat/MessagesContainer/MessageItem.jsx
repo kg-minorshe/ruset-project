@@ -136,6 +136,14 @@ const MessageItem = memo(
       return `${(views / 1000000).toFixed(1)}M`;
     }, []);
 
+    const getViewsCount = useCallback(() => {
+      if (message.views === undefined || message.views === null) return 0;
+      if (typeof message.views === "object") {
+        return message.views.count ?? 0;
+      }
+      return message.views;
+    }, [message.views]);
+
     const renderReactions = useCallback(() => {
       const reactions = message.reactions || {};
       const reactionEntries = Object.entries(reactions).filter(
@@ -311,19 +319,31 @@ const MessageItem = memo(
           </span>
         );
       }
+
       if (chatInfo?.type === "channel") return null;
-      if (message.is_read) {
+      if (message.sender !== "me") return null;
+
+      const viewsCount = getViewsCount();
+      const isRead = Boolean(message.is_read);
+      const hasDelivery = viewsCount > 0;
+
+      if (!hasDelivery) {
         return (
-          <span className="message-status read" title="Прочитано">
-            <BiCheckDouble />
+          <span className="message-status telegram sent" title="Отправлено">
+            <BiCheck className="check first" />
           </span>
         );
       }
 
-      if (message.sender !== "me") return null;
       return (
-        <span className="message-status sent" title="Отправлено">
-          <BiCheck />
+        <span
+          className={`message-status telegram ${
+            isRead ? "read" : "delivered"
+          }`}
+          title={isRead ? "Прочитано" : "Доставлено"}
+        >
+          <BiCheck className="check first" />
+          <BiCheck className="check second" />
         </span>
       );
     };
@@ -414,7 +434,7 @@ const MessageItem = memo(
               ) : null}
               {chatInfo?.type === "channel" && message.views !== undefined ? (
                 <span className="views">
-                  <BsEye /> {formatViews(message.views)}
+                  <BsEye /> {formatViews(getViewsCount())}
                 </span>
               ) : null}
               {message.is_pinned ? (
