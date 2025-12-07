@@ -6,7 +6,7 @@ export const useMessageSender = ({
     chatData,
     chatInfo,
     currentUser,
-    onMessageSent,
+    onMessageSent = () => {},
     uploadFiles,
 }) => {
     const sendMessage = async ({

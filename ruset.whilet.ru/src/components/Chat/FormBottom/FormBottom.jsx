@@ -31,6 +31,7 @@ export const FormBottom = ({
   chatInfo,
   currentUser,
   chatData,
+  onMessageSent,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -70,7 +71,7 @@ export const FormBottom = ({
     chatData,
     chatInfo,
     currentUser,
-    onMessageSent: () => {},
+    onMessageSent,
     uploadFiles: uploadFilesToServer,
   });
 
