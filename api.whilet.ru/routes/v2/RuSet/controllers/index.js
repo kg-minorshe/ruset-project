@@ -411,6 +411,8 @@ class RuSetController {
         });
       }
 
+      await Messages.markAsRead(chatInfo.chat_id, userId);
+
       const messages = await Messages.findByChatId(chatInfo.chat_id, {
         limit,
         beforeId,
@@ -538,6 +540,8 @@ class RuSetController {
           result.description = chatData.description;
         }
 
+        const lastMessageId = lastMessage?.id;
+
         result.lastMessage = lastMessage
           ? {
               text: lastMessage.text || "Сообщения отсутствуют",
@@ -551,6 +555,16 @@ class RuSetController {
               user_id: null,
               is_read: null,
             };
+
+        if (
+          lastMessageId &&
+          result.lastMessage.user_id !== userId &&
+          unreadCount === 0 &&
+          result.lastMessage.is_read === 0
+        ) {
+          await Messages.update(lastMessageId, { is_read: true });
+          result.lastMessage.is_read = true;
+        }
 
         result.unreadCount = unreadCount;
         result.peopleCount = participantsCount;
