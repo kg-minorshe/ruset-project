@@ -1001,8 +1001,11 @@ class RuSetController {
         emoji
       );
 
+      let reactionChanged = false;
+
       if (existingReaction) {
         await MessageReactions.delete(existingReaction.id);
+        reactionChanged = true;
       } else {
         await MessageReactions.create({
           user_id: userId,
@@ -1010,6 +1013,10 @@ class RuSetController {
           emoji,
         });
 
+        reactionChanged = true;
+      }
+
+      if (reactionChanged) {
         await Updates.create({
           user_id: userId,
           message_id: parseInt(mid),
