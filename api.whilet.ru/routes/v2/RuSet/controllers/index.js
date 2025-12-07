@@ -939,6 +939,13 @@ class RuSetController {
         is_pinned: !msg.is_pinned,
       });
 
+      await Updates.create({
+        user_id: userId,
+        message_id: parseInt(mid),
+        chat_id: msg.chat_id,
+        type: "message_pin",
+      });
+
       return v1.main.sendResponse({
         status: 200,
         message: "Статус закрепления изменен",
