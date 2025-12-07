@@ -477,17 +477,21 @@ class SSEManager {
           const lastCheck = this.lastUpdateCheck.get(chatId)?.get(connId);
           if (!lastCheck) continue;
 
+          // Используем небольшой буфер, чтобы не пропускать обновления из-за
+          // округления времени в базе (created_at хранится с точностью до секунды)
+          const bufferedLastCheck = new Date(lastCheck.getTime() - 1000);
+
           // 1. Проверяем удаления через updates
-          await this.checkDeletes(connection, chatId, lastCheck);
+          await this.checkDeletes(connection, chatId, bufferedLastCheck);
 
           // 2. Проверяем реакции через updates (они удаляются через 30 сек)
-          await this.checkReactionUpdates(connection, chatId, lastCheck);
+          await this.checkReactionUpdates(connection, chatId, bufferedLastCheck);
 
           // 3. Проверяем редактирования через updated_at
-          await this.checkMessageEdits(connection, chatId, lastCheck);
+          await this.checkMessageEdits(connection, chatId, bufferedLastCheck);
 
           // 4. Проверяем просмотры через updated_at
-          await this.checkViewUpdates(connection, chatId, lastCheck);
+          await this.checkViewUpdates(connection, chatId, bufferedLastCheck);
 
           // Обновляем время последней проверки
           this.lastUpdateCheck.get(chatId).set(connId, new Date());
