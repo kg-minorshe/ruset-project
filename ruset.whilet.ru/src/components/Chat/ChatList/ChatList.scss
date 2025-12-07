@@ -275,6 +275,37 @@
             font-size: 14px;
             display: flex;
             align-items: center;
+
+            &.failed {
+              color: #f42334;
+            }
+
+            &.read {
+              color: $color--primary-blue;
+            }
+
+            &.telegram {
+              gap: 2px;
+              color: var(--color-text-description);
+
+              .check {
+                font-size: 16px;
+                line-height: 1;
+              }
+
+              .second {
+                margin-left: -6px;
+              }
+
+              &.delivered .check,
+              &.sent .check {
+                color: var(--color-text-description);
+              }
+
+              &.read .check {
+                color: $color--primary-blue;
+              }
+            }
           }
         }
       }
