@@ -621,41 +621,39 @@ export function ChatComponent({
 
         case "initial_messages":
           setMessages((prev) => {
-            if (hasLoadedFromCacheRef.current && prev.length > 0) {
-              const newMessages = data.messages.map((msg) => {
-                return {
-                  ...msg,
-                  sender:
-                    msg?.user_id === currentUser.id ||
-                    msg?.login === currentUser.login
-                      ? "me"
-                      : "user",
-                };
-              });
+            const mappedMessages = data.messages.map((msg) => ({
+              ...msg,
+              sender:
+                msg?.user_id === currentUser.id ||
+                msg?.login === currentUser.login
+                  ? "me"
+                  : "user",
+            }));
 
-              const existingIds = new Set(prev.map((m) => m.id));
-              const uniqueNew = newMessages.filter(
+            if (hasLoadedFromCacheRef.current && prev.length > 0) {
+              const incomingById = new Map(
+                mappedMessages.map((msg) => [msg.id, msg])
+              );
+
+              const updatedExisting = prev.map((msg) =>
+                incomingById.has(msg.id)
+                  ? { ...msg, ...incomingById.get(msg.id) }
+                  : msg
+              );
+
+              const existingIds = new Set(updatedExisting.map((m) => m.id));
+              const uniqueNew = mappedMessages.filter(
                 (m) => !existingIds.has(m.id)
               );
 
-              const combined = [...prev, ...uniqueNew].sort(
+              const combined = [...updatedExisting, ...uniqueNew].sort(
                 (a, b) => a.id - b.id
               );
-              const latestMessages = combined.slice(-PAGE_SIZE);
 
-              return latestMessages;
-            } else {
-              const newMessages = data.messages.map((msg) => ({
-                ...msg,
-                sender:
-                  msg?.user_id === currentUser.id ||
-                  msg?.login === currentUser.login
-                    ? "me"
-                    : "user",
-              }));
-
-              return newMessages.sort((a, b) => a.id - b.id);
+              return combined.slice(-PAGE_SIZE);
             }
+
+            return mappedMessages.sort((a, b) => a.id - b.id);
           });
 
           setHasMore(data.hasMore);
