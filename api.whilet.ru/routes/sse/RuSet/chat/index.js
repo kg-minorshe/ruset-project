@@ -796,6 +796,17 @@ class SSEManager {
             "https://mfs.whilet.ru/s?path=/images/regular/default_ico.png";
         }
 
+        const lastMessageRow = lastMessage[0];
+        let lastMessageIsRead = lastMessageRow?.is_read ?? 0;
+
+        if (lastMessageRow) {
+          if (lastMessageRow.user_id === userId) {
+            lastMessageIsRead = 1;
+          } else if (unreadResult[0]?.count > 0) {
+            lastMessageIsRead = 0;
+          }
+        }
+
         const enrichedChat = {
           id: chat.id,
           type: chat.type,
@@ -806,10 +817,10 @@ class SSEManager {
           lastMessage:
             lastMessage.length > 0
               ? {
-                  text: lastMessage[0].text || "Нет сообщений",
-                  timestamp: lastMessage[0].created_at,
-                  user_id: lastMessage[0].user_id,
-                  is_read: lastMessage[0].is_read ?? 0,
+                  text: lastMessageRow.text || "Нет сообщений",
+                  timestamp: lastMessageRow.created_at,
+                  user_id: lastMessageRow.user_id,
+                  is_read: lastMessageIsRead,
                 }
               : {
                   text: "Нет сообщений",
