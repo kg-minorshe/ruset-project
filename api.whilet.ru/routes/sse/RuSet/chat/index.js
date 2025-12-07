@@ -626,6 +626,22 @@ class SSEManager {
     }
   }
 
+  async broadcastViewUpdates(chatId, messageIds) {
+    const ids = Array.isArray(messageIds) ? messageIds : [messageIds];
+    const chatKey = parseInt(chatId);
+    if (Number.isNaN(chatKey) || !this.chatRooms.has(chatKey)) return;
+
+    const connections = this.chatRooms.get(chatKey);
+    for (const messageId of ids) {
+      for (const connId of connections) {
+        const connection = this.connections.get(connId);
+        if (connection) {
+          await this.sendViewUpdate(connection, chatId, messageId);
+        }
+      }
+    }
+  }
+
   async checkForChatListUpdates() {
     try {
       if (this.chatListConnections.size === 0) return;
@@ -904,16 +920,67 @@ class SSEManager {
       const timestamp = Math.floor(Date.now() / 1000);
 
       await this.db.execute(
-        `INSERT INTO message_views (message_id, user_id, viewed_at) 
+        `INSERT INTO message_views (message_id, user_id, viewed_at)
                  VALUES (?, ?, ?)`,
         [messageId, userId, timestamp]
       );
 
       await this.updateChatListForParticipants(chatId);
 
+      await this.broadcastViewUpdates(chatId, messageId);
+
       return true;
     } catch (error) {
       console.error("Ошибка отметки сообщения как просмотренного:", error);
+      throw error;
+    }
+  }
+
+  async markMessagesAsViewed(connectionId, chatId, messageIds, userId) {
+    try {
+      const connection = this.connections.get(connectionId);
+      if (!connection) {
+        throw new Error("Соединение не найдено");
+      }
+
+      const uniqueIds = [...new Set(messageIds)].filter((id) => !!id);
+      if (uniqueIds.length === 0) {
+        return true;
+      }
+
+      const placeholders = uniqueIds.map(() => "?").join(", ");
+
+      const [existing] = await this.db.execute(
+        `SELECT message_id FROM message_views
+                 WHERE message_id IN (${placeholders}) AND user_id = ?`,
+        [...uniqueIds, userId]
+      );
+
+      const existingIds = new Set(existing.map((row) => row.message_id));
+      const idsToInsert = uniqueIds.filter((id) => !existingIds.has(id));
+
+      if (idsToInsert.length === 0) {
+        return true;
+      }
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const values = idsToInsert
+        .map(() => "(?, ?, ?)")
+        .join(", ");
+
+      await this.db.execute(
+        `INSERT INTO message_views (message_id, user_id, viewed_at)
+                 VALUES ${values}`,
+        idsToInsert.flatMap((id) => [id, userId, timestamp])
+      );
+
+      await this.updateChatListForParticipants(chatId);
+
+      await this.broadcastViewUpdates(chatId, idsToInsert);
+
+      return true;
+    } catch (error) {
+      console.error("Ошибка массовой отметки сообщений как просмотренных:", error);
       throw error;
     }
   }
@@ -941,13 +1008,16 @@ class SSEManager {
 
       for (const msg of unviewedMessages) {
         await this.db.execute(
-          `INSERT INTO message_views (message_id, user_id, viewed_at) 
+          `INSERT INTO message_views (message_id, user_id, viewed_at)
                      VALUES (?, ?, ?)`,
           [msg.id, userId, timestamp]
         );
       }
 
       await this.updateChatListForParticipants(chatId);
+
+      const insertedIds = unviewedMessages.map((msg) => msg.id);
+      await this.broadcastViewUpdates(chatId, insertedIds);
 
       return true;
     } catch (error) {
@@ -1019,9 +1089,22 @@ const sseManager = new SSEManager(Vostok1);
 
 // Endpoints
 router.get("/connect", async (req, res, next) => {
-  const userId = req.query.user_id || req.user?.id || null;
-  const connectionId = uuidv4();
   const v1 = new Vostok1(req, res, next);
+  let userId = req.query.user_id || req.user?.id || null;
+
+  if (!userId) {
+    const hasSession = await v1.auth.checkSession();
+    if (!hasSession) {
+      return res.status(401).json({ error: "User ID required" });
+    }
+
+    userId = await v1.auth.getCurrentUserID();
+    if (!userId) {
+      return res.status(401).json({ error: "User ID required" });
+    }
+  }
+
+  const connectionId = uuidv4();
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -1045,7 +1128,7 @@ router.get("/connect", async (req, res, next) => {
       chat_id,
       lastMsgId,
       await v1.auth.checkSession(),
-      await v1.auth.getCurrentUserID()
+      userId
     );
   }
 
@@ -1129,6 +1212,45 @@ router.post("/mark-as-viewed", express.json(), async (req, res) => {
     });
   } catch (error) {
     console.error("Ошибка отметки сообщения как просмотренного:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+router.post("/mark-many-viewed", express.json(), async (req, res) => {
+  try {
+    const { connectionId, chat_id, message_ids } = req.body;
+
+    if (!connectionId || !chat_id || !Array.isArray(message_ids)) {
+      return res.status(400).json({
+        success: false,
+        message: "Отсутствуют обязательные параметры",
+      });
+    }
+
+    const connection = sseManager.connections.get(connectionId);
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: "Соединение не найдено",
+      });
+    }
+
+    await sseManager.markMessagesAsViewed(
+      connectionId,
+      chat_id,
+      message_ids,
+      connection.userId
+    );
+
+    res.json({
+      success: true,
+      message: "Сообщения отмечены как просмотренные",
+    });
+  } catch (error) {
+    console.error("Ошибка массовой отметки сообщений как просмотренных:", error);
     res.status(500).json({
       success: false,
       message: error.message,
