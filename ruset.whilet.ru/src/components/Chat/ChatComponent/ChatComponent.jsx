@@ -414,6 +414,14 @@ export function ChatComponent({
     ]
   );
 
+  const scrollChatToBottom = useCallback(() => {
+    if (!messagesContainerRef.current || !isMountedRef.current) return;
+
+    messagesContainerRef.current.scrollTop =
+      messagesContainerRef.current.scrollHeight;
+    scheduleVisibleCollection();
+  }, [scheduleVisibleCollection]);
+
   const closeSSE = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -697,6 +705,14 @@ export function ChatComponent({
 
               return updatedMessages;
             });
+
+            if (
+              newMessage.user_id !== currentUser.id &&
+              isWindowFocused &&
+              isChatInViewport
+            ) {
+              queueViewedMessages([newMessage.id]);
+            }
           }
           break;
 
@@ -773,8 +789,10 @@ export function ChatComponent({
       chatInfo?.id,
       chatData.login,
       scrollToBottomIfNeeded,
-      messages.length,
       currentUser?.login,
+      isWindowFocused,
+      isChatInViewport,
+      queueViewedMessages,
     ]
   );
 
@@ -1899,6 +1917,7 @@ export function ChatComponent({
         chatData={chatData}
         connectionId={connectionId}
         sseConnected={sseConnected}
+        onMessageSent={scrollChatToBottom}
       />
     </div>
   );
