@@ -950,7 +950,13 @@ export function ChatComponent({
     }
 
     if (eventSourceRef.current) {
-      return;
+      const readyState = eventSourceRef.current.readyState;
+
+      if (typeof EventSource !== "undefined" && readyState === EventSource.CLOSED) {
+        closeSSE();
+      } else if (readyState === EventSource.OPEN || readyState === EventSource.CONNECTING) {
+        return;
+      }
     }
 
     const chat_id = chatData.id || chatInfo?.id;
@@ -1124,6 +1130,7 @@ export function ChatComponent({
     chatInfo?.id,
     getLastMessageIdFromDB,
     isOnline,
+    closeSSE,
   ]);
 
   useEffect(() => {
@@ -1143,6 +1150,24 @@ export function ChatComponent({
       }
     };
   }, [currentUser, connectSSE, chatData.login, chatInfo?.id]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const es = eventSourceRef.current;
+
+      if (!es || typeof EventSource === "undefined") {
+        return;
+      }
+
+      if (es.readyState === EventSource.CLOSED) {
+        console.warn("SSE закрыто, пытаемся переподключиться");
+        closeSSE();
+        connectSSE();
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [closeSSE, connectSSE]);
 
   useEffect(() => {
     cleanupOldCache();
