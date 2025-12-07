@@ -416,6 +416,7 @@ class RuSetController {
       const messages = await Messages.findByChatId(chatInfo.chat_id, {
         limit,
         beforeId,
+        userId,
       });
 
       const hasMore = messages.length > limit;
@@ -505,7 +506,8 @@ class RuSetController {
         };
 
         const lastMessage = await Messages.getLastMessage(
-          participation.chat_id
+          participation.chat_id,
+          userId
         );
         const unreadCount = await Messages.countUnread(
           participation.chat_id,
