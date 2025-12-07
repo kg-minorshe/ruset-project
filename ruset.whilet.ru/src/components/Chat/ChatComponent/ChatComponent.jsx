@@ -258,6 +258,18 @@ export function ChatComponent({
     });
   }, [collectVisibleUnread]);
 
+  useEffect(() => {
+    if (!currentUser?.id || !Array.isArray(messages)) return;
+
+    const unreadIds = messages
+      .filter((msg) => !msg.is_read && msg.user_id !== currentUser.id)
+      .map((msg) => msg.id);
+
+    if (unreadIds.length > 0) {
+      queueViewedMessages(unreadIds);
+    }
+  }, [messages, currentUser?.id, queueViewedMessages]);
+
   const updateUnreadCount = useCallback(() => {
     if (!messagesContainerRef.current) {
       setUnreadCount(0);
@@ -706,11 +718,7 @@ export function ChatComponent({
               return updatedMessages;
             });
 
-            if (
-              newMessage.user_id !== currentUser.id &&
-              isWindowFocused &&
-              isChatInViewport
-            ) {
+            if (newMessage.user_id !== currentUser.id) {
               queueViewedMessages([newMessage.id]);
             }
           }

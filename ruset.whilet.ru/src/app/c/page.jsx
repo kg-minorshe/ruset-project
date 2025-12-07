@@ -211,6 +211,7 @@ function ChatPageContent() {
         <ChatList
           onChatSelect={onChatSelect}
           selectedChatId={selectedChat?.id}
+          currentUser={currentUser}
           isExpandedMenu={isExpandedMenu}
           setIsExpandedMenu={setIsExpandedMenu}
           isExpandedChat={isExpandedChat}
