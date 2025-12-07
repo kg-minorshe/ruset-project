@@ -1,0 +1,123 @@
+.ReactionPicker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+
+  .reaction-picker-container {
+    position: absolute;
+    background: var(--color-bg-3);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    pointer-events: all;
+    animation: reactionPickerShow 0.2s ease-out;
+    max-width: 320px;
+    max-height: 250px;
+
+    .reaction-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-color: var(--color-scroll-message) transparent !important;
+      scrollbar-width: thin !important;
+      &::-webkit-scrollbar {
+        width: 5px !important;
+        height: 5px !important;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--color-scroll-message) !important;
+        border-radius: 20px !important;
+      }
+      &::-webkit-scrollbar-track {
+        background: var(--color-scroll-message) !important;
+      }
+      .reaction-item {
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 36px;
+
+        &:hover {
+          background: var(--hover-color);
+          transform: scale(1.2);
+        }
+
+        &:active {
+          transform: scale(1.1);
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .reaction-picker-container {
+      max-width: calc(100vw - 32px);
+
+      .reaction-grid {
+        grid-template-columns: repeat(8, 1fr);
+
+        .reaction-item {
+          font-size: 18px;
+          min-width: 32px;
+          min-height: 32px;
+          padding: 6px;
+        }
+      }
+    }
+  }
+  .reaction-picker-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+  }
+
+  .reaction-item {
+    position: relative;
+
+    &.has-reaction {
+      background-color: #e3f2fd;
+      border: 2px solid #2196f3;
+    }
+
+    .reaction-indicator {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #4caf50;
+      color: white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+@keyframes reactionPickerShow {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

@@ -1,0 +1,72 @@
+@use "@/styles/variables" as *;
+
+.SearchBox {
+  color: var(--color-text-standard-2);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-menu);
+
+  .search-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border-radius: 20px;
+    padding: 13px;
+
+    .search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 16px;
+      width: 100%;
+      color: var(--color-link-menu);
+
+      &::placeholder {
+        color: var(--color-text-description);
+      }
+    }
+
+    .search-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+
+      .search-counter {
+        font-size: 11px;
+        margin-right: 5px;
+        color: var(--color-text-description);
+        white-space: nowrap;
+      }
+
+      button {
+        padding: 4px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.1s ease;
+        cursor: pointer;
+        flex-shrink: 0;
+        border: none;
+        background-color: var(--color-bg-2);
+
+        &:hover {
+          background-color: var(--color-bg-1);
+        }
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        svg {
+          font-size: 16px;
+          width: 21.5px;
+          height: 21.5px;
+          color: var(--color-text-description);
+        }
+      }
+    }
+  }
+}

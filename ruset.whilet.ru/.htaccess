@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# Обработка статических файлов
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Добавляем .html к запросам без расширения
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^([^.]+)$ $1.html [NC,L]
+
+# Для папок с index.html
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^(.*[^/])$ $1/ [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^([^.]+)/$ $1/index.html [NC,L]

@@ -1,0 +1,257 @@
+@use "@/styles/variables" as *;
+:root {
+  --color: rgb(37, 40, 53);
+  --color--profile-link: #fff;
+  --color--profile-link-hover: #040a1fb8;
+  --color--transparent2: #60627f;
+  --header--bg-color: #edf1ffb8;
+  --color--dropdown-bg: #ffffff;
+  --nav-bg: #f7f7f7;
+  --bg-hover-menu: #02081805;
+}
+header.Header {
+  height: 70px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999999;
+  border-bottom: 1px solid #b3bfdb1d;
+  color: var(--color--transparent2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 30px;
+  backdrop-filter: blur(18px);
+  background: var(--header--bg-color);
+  font-family: "NunitoSans", sans-serif;
+  @media screen and (max-width: 500px) {
+    padding: 0 15px;
+  }
+  .container {
+    width: 100%;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .theme-toggle {
+    font-size: 1.7rem;
+    cursor: pointer;
+    color: var(--color--transparent2);
+    transition: color ease-in-out 0.1s, transform ease-in-out 0.15s;
+    &:hover {
+      transform: rotate(-90deg);
+      color: $color--light-moon;
+    }
+    &:active,
+    &:focus {
+      border: none;
+      outline: none;
+    }
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 35px;
+    .nav-item .dropdown-menu a {
+      &:hover {
+        background-color: var(--bg-hover-menu);
+      }
+    }
+    @media screen and (max-width: 945px) {
+      transition: transform 0.15s ease-in-out;
+      transform: translateX(-150%);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 40px);
+      background: var(--color--dropdown-bg);
+      width: 100%;
+      top: 70px;
+      position: fixed;
+      left: 0;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 0px;
+      padding: 20px;
+      @media screen and (max-width: 550px) {
+        padding: 20px 0;
+      }
+      a {
+        height: 45px !important;
+        width: 100%;
+        padding-left: 20px;
+        display: block;
+        color: var(--color--transparent2);
+        &:hover {
+          color: var(--color);
+        }
+        @media screen and (max-width: 550px) {
+          height: 30px !important;
+        }
+      }
+      &.is-active {
+        transform: translateX(0%);
+      }
+    }
+    a {
+      color: var(--color--transparent2);
+      text-decoration: none;
+      transition: color 0.1s ease-in-out;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      &:hover {
+        color: var(--color);
+      }
+      &.link-dropdown {
+        height: 70px;
+      }
+      .link-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      @media screen and (max-width: 550px) {
+        font-size: 0.9rem;
+      }
+    }
+    .nav-item {
+      position: relative;
+      @media screen and (max-width: 945px) {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      a {
+        img {
+          width: 12px;
+          transition: transform 0.3s ease;
+        }
+      }
+
+      &.active a img {
+        transform: rotate(180deg);
+      }
+      @media screen and (min-width: 946px) {
+        &:hover a img {
+          transform: rotate(180deg);
+        }
+      }
+
+      .dropdown-menu {
+        left: -30px;
+        top: 60px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.105);
+        display: none;
+        flex-direction: column;
+        z-index: 99999;
+        position: absolute;
+        margin: 0 auto;
+        padding: 5px 0;
+        background: var(--color--dropdown-bg);
+        border: 1px solid #cacfe214;
+        width: 340px;
+        overflow: hidden;
+        @media screen and (max-width: 550px) {
+          background-color: var(--nav-bg);
+        }
+        @media screen and (max-width: 555px) {
+          box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+          border-radius: 0;
+        }
+        .circle {
+          position: absolute;
+          width: 300px;
+          height: 300px;
+          filter: blur(100px);
+          // background: linear-gradient(#0075ff8c, #0075ff00 100%);
+          background-color: transparent;
+          border-radius: 9999px;
+          top: -50%;
+          left: -40%;
+          z-index: -1;
+        }
+        @media screen and (max-width: 945px) {
+          position: relative;
+          width: 100%;
+          left: 0;
+          top: 0;
+        }
+
+        a {
+          padding: 0.75rem 1rem;
+          display: inline-flex;
+          align-items: center;
+          @media screen and (max-width: 550px) {
+            padding: 0.75rem 1.3rem;
+          }
+        }
+      }
+
+      @media screen and (min-width: 946px) {
+        &:hover .dropdown-menu {
+          display: flex;
+        }
+      }
+      &.active .dropdown-menu {
+        display: flex;
+      }
+    }
+  }
+  img.logo {
+    max-width: 70px;
+    margin-bottom: -10px;
+    cursor: pointer;
+    @media screen and (max-width: 320px) {
+      max-width: 53px;
+    }
+  }
+  .rightEl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    @media screen and (max-width: 500px) {
+      gap: 10px;
+    }
+    .profile-link {
+      padding: 10px 15px;
+      border-radius: 999px;
+      color: var(--color--profile-link);
+      text-decoration: none;
+      background-color: $color--primary-blue;
+      transition: outline 0.1s ease-in-out, background-color 0.1s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      user-select: none;
+      @media screen and (max-width: 550px) {
+        font-size: 0.9rem;
+      }
+      @media screen and (max-width: 348px) {
+        svg {
+          display: none;
+        }
+      }
+      &:hover {
+        background-color: transparent;
+        color: var(--color--profile-link-hover);
+        outline: 2px solid $color--primary-blue;
+      }
+    }
+    .IoMenu {
+      font-size: 2.3rem;
+      border-radius: 5px;
+      outline: 1.5px solid var(--color--transparent2);
+      padding: 5px;
+      cursor: pointer;
+      @media screen and (min-width: 946px) {
+        display: none;
+      }
+    }
+  }
+}

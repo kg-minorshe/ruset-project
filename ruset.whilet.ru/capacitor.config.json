@@ -1,0 +1,50 @@
+{
+  "appId": "ru.gkiwebik.ruset",
+  "appName": "ruset",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "Keyboard": {
+      "resize": "ionic",
+      "style": "DARK",
+      "resizeOnFullScreen": true
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "Camera": {
+      "allowEditing": false,
+      "source": "PHOTOLIBRARY"
+    },
+    "Filesystem": {
+      "androidExtraFilesystems": [
+        "files",
+        "files-external",
+        "documents",
+        "sdcard",
+        "cache",
+        "cache-external",
+        "root"
+      ],
+      "iosExtraFilesystems": [
+        "library",
+        "library-nosync",
+        "documents",
+        "documents-nosync",
+        "cache",
+        "bundle",
+        "root"
+      ]
+    }
+  },
+  "server": {
+    "hostname": "whilet.ru",
+    "androidScheme": "https"
+  },
+  "android": {
+    "scheme": "ruset"
+  }
+}

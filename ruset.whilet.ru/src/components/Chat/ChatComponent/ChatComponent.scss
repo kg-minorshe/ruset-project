@@ -1,0 +1,27 @@
+@use "@/styles/variables" as *;
+
+.chatContainer {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 40px);
+  width: 100%;
+  transition: width 0.1s linear;
+  &.is-active {
+    width: calc(100% - 250px - 300px);
+    &.is-active-2 {
+      width: calc(100% - 250px - 70px);
+    }
+  }
+  &.is-active-2 {
+    width: calc(100% - 250px - 300px);
+  }
+  &:not(.is-active) {
+    width: calc(100% - 70px - 300px);
+    &.is-active-2 {
+      width: calc(100% - 70px - 70px);
+    }
+  }
+  @media screen and (max-width: 1150px) {
+    width: 100% !important;
+  }
+}

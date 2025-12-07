@@ -1,0 +1,221 @@
+@use "@/styles/variables" as *;
+.LeftPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 70px;
+  width: 70px;
+  height: calc(100vh - 40px);
+  padding: 10px 0;
+  background-color: var(--color-bg-menu);
+  border-right: 1px solid var(--color-border-menu);
+  transition: width 0.1s ease, min-width 0.1s linear;
+  position: relative;
+  z-index: 99999;
+
+  @media screen and (max-width: 768px) {
+    transition: width 0.1s ease-in-out;
+  }
+
+  .linkText {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  &.is-width {
+    overflow: hidden;
+    width: 250px;
+    min-width: 250px;
+
+    .linkText {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .logo a::after {
+      opacity: 1;
+    }
+  }
+
+  .logo {
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    user-select: none;
+
+    img {
+      width: 40px;
+      transition: transform 0.2s ease;
+    }
+
+    a {
+      color: $color--primary-blue;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 18px;
+      position: relative;
+      transition: color 0.15s ease-in-out;
+
+      &:hover {
+        color: $color--primary-pink;
+      }
+
+      &::after {
+        content: "ВАЙЛТ™";
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0 10px;
+    height: 100%;
+    @media screen and (min-width: 769px) {
+      gap: 5px;
+    }
+
+    hr {
+      border: none;
+      outline: none;
+      height: 1px;
+      width: 100%;
+      background-color: var(--color-context-menu);
+      opacity: 0.1;
+    }
+
+    li {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.1s ease;
+      @media screen and (max-width: 1150px) {
+        &.is-chat {
+          display: none;
+        }
+      }
+
+      &:hover {
+        background-color: transparent;
+        a {
+          color: $color--primary-blue;
+        }
+      }
+
+      a {
+        color: var(--color-link-menu);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 10px;
+        font-size: 15px;
+        position: relative;
+        transition: color 0.15s ease-in-out;
+        @media screen and (min-width: 769px) {
+          &:hover::before {
+            content: attr(data-title);
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--color-bg-1);
+            color: var(--color-link-menu);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.146);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            margin-left: 15px;
+            z-index: 1000;
+          }
+        }
+      }
+
+      span.is-icon {
+        font-size: 22px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 30px;
+      }
+
+      .linkText {
+        opacity: 0;
+        transform: translateX(-10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        white-space: nowrap;
+      }
+    }
+  }
+  &:not(.is-width) {
+    .logo a {
+      overflow: hidden;
+      width: 70px;
+    }
+    ul {
+      a {
+        .linkText {
+          display: none;
+        }
+      }
+    }
+  }
+
+  @media screen and (max-width: 768px) {
+    position: fixed;
+    z-index: 1000;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    height: calc(100vh - 40px);
+    transition: transform 0.3s ease, width 0.2s ease;
+
+    &:not(.is-width) {
+      width: 250px;
+      transform: translateX(-100%);
+    }
+
+    &.is-width {
+      transform: translateX(0);
+    }
+  }
+
+  @media (max-width: 300px) {
+    max-width: 500px !important;
+    width: 100% !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .LeftPanel-bg-dark {
+    position: fixed;
+    top: 40px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 40px);
+    z-index: 999;
+    background-color: #ffffff30;
+    transform: translateX(-100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease-in-out;
+    backdrop-filter: blur(5px);
+    &.is-active {
+      transform: translateX(0%);
+      opacity: 1;
+    }
+  }
+  [data-theme="dark"] {
+    .LeftPanel-bg-dark {
+      background-color: #00000030;
+    }
+  }
+}

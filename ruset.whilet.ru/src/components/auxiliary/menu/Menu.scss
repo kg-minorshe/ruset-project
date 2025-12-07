@@ -1,0 +1,152 @@
+@use "@/styles/variables" as *;
+
+.Menu {
+  position: relative;
+  z-index: 2000000;
+  user-select: none;
+  padding: 20px;
+  position: relative;
+  @media screen and (min-width: 591px) {
+    padding-top: 40px;
+  }
+  &__toggle {
+    @media screen and (min-width: 591px) {
+      display: none;
+    }
+    svg {
+      position: fixed;
+      z-index: 9999;
+      top: 0px;
+      cursor: pointer;
+      box-shadow: 0 0 3px #ddd;
+      font-size: 2.5rem;
+      padding: 7px;
+      left: calc(100% + 10px);
+      background-color: $color--primary-dark;
+      color: #fff;
+      border-radius: 10px;
+      transition: background-color 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+    }
+  }
+  @media screen and (max-width: 590px) {
+    position: fixed;
+    width: max-content;
+    top: 100px;
+    display: flex;
+    justify-content: center;
+    height: max-content;
+    padding: 0 5px 0 20px;
+    transition: transform 0.15s ease-in-out;
+    transform: translateX(-100%);
+  }
+  &.is-active {
+    transform: translateX(0);
+    .Menu__toggle {
+      svg {
+        background-color: $color--primary-blue;
+        box-shadow: 0 0 0 5px rgba(0, 119, 255, 0.151);
+      }
+    }
+  }
+  & .container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 110px;
+  }
+  nav {
+    background-color: #fff;
+    box-shadow: 0 0 0 1px #ebeaea;
+    border-radius: 40px;
+    width: 265px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    @media screen and (max-width: 1280px) {
+      width: 51.5px;
+      padding: 0px;
+      align-items: center;
+      padding: 5px 0;
+      overflow: hidden;
+      a svg {
+        font-size: 22px !important;
+      }
+      &:hover {
+        overflow: inherit;
+      }
+    }
+    @media screen and (max-width: 590px) {
+      overflow: inherit;
+      width: 100%;
+      gap: 3px;
+      align-items: flex-start;
+      justify-content: space-around;
+      background-color: rgb(255 255 255 / 50%);
+      box-shadow: 0 0 0 1px #ddd;
+      padding: 10px;
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      a {
+        transition: color 0.15s ease-in-out;
+        width: 100%;
+        &:hover {
+          color: $color--primary-blue;
+        }
+      }
+    }
+    a {
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      color: $color--primary-dark;
+      position: relative;
+      gap: 15px;
+      padding: 15px;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 9999px;
+      transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+      @media screen and (max-width: 1280px) {
+        padding: 10px;
+      }
+      @media screen and (min-width: 591px) and (max-width: 1280px) {
+        span {
+          display: none;
+        }
+      }
+      svg {
+        font-size: 25px;
+      }
+    }
+    a {
+      @media screen and (min-width: 591px) and (max-width: 1280px) {
+        &::after {
+          content: attr(data-title);
+          position: absolute;
+          top: 15%;
+          left: calc(100% + 20px);
+          background-color: $color--primary-dark;
+          color: #fff;
+          padding: 7px 10px;
+          border-radius: 50px;
+          font-size: 14px;
+          white-space: nowrap;
+          z-index: 1000;
+          opacity: 0;
+          transition: opacity 0.15s ease-in-out;
+        }
+      }
+      @media screen and (min-width: 591px) {
+        &:hover {
+          background-color: #f2f3f691;
+          @media screen and (max-width: 1280px) {
+            &::after {
+              opacity: 1;
+            }
+          }
+        }
+      }
+    }
+  }
+}

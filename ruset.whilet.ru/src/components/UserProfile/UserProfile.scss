@@ -1,0 +1,214 @@
+@use "@/styles/variables" as *;
+.UserProfile {
+  display: flex;
+  flex-direction: column;
+  min-width: 350px;
+  width: 350px;
+  height: calc(100vh - 40px);
+  background-color: var(--color-bg-menu);
+  border-right: 1px solid var(--color-border-menu);
+  transition: transform 0.15s ease-in-out;
+  position: fixed;
+  z-index: 100000;
+  user-select: none;
+  transform: translateX(-100%);
+  overflow: auto;
+  scrollbar-color: var(--color-bg-2) transparent !important;
+  scrollbar-width: thin !important;
+  &::-webkit-scrollbar {
+    width: 5px !important;
+    height: 5px !important;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-bg-2) !important;
+    border-radius: 20px !important;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--color-bg-2) !important;
+  }
+
+  @media screen and (max-width: 450px) {
+    min-width: 101%;
+    width: 101%;
+  }
+
+  &.is-active {
+    transform: translateX(0%);
+  }
+
+  .avatar {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    position: relative;
+    min-height: 350px;
+    .headerBtns {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      position: absolute;
+      z-index: 2;
+      width: 100%;
+      div {
+        display: flex;
+        gap: 3px;
+        span {
+          width: 40px;
+          height: 40px;
+          font-size: 20px;
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
+          color: #fff;
+          cursor: pointer;
+          border-radius: 999px;
+          transition: background-color 0.15s ease-in-out;
+          background-color: #00000014;
+          backdrop-filter: blur(18px);
+          &:hover {
+            background-color: #00000057;
+          }
+        }
+      }
+    }
+    img {
+      width: 100%;
+      object-fit: cover;
+      aspect-ratio: 1/1;
+      user-select: none;
+      pointer-events: none;
+      background-color: var(--color-bg-ico-alt);
+    }
+    .names {
+      position: absolute;
+      bottom: 0;
+      height: 60px;
+      padding: 10px 17px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      justify-content: center;
+      z-index: 5;
+      span {
+        color: #fff;
+        &.username {
+          font-size: 16px;
+        }
+        &.login {
+          font-size: 13px;
+          opacity: 0.7;
+        }
+      }
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      background-color: #0000003b;
+      backdrop-filter: blur(15px);
+      background-color: #00000045;
+      width: 100%;
+      height: 60px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+  }
+  .data {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    .description,
+    .phone,
+    .email {
+      color: var(--color-text-data-profile-2);
+      small {
+        font-size: 11px;
+        color: var(--color-text-data-profile);
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        margin-top: 3px;
+      }
+    }
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    margin-top: 10px;
+    @media screen and (min-width: 769px) {
+      gap: 5px;
+    }
+
+    li {
+      list-style-type: none;
+      padding: 0 10px;
+      margin: 0;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.1s ease;
+      @media screen and (max-width: 1150px) {
+        &.is-chat {
+          display: none;
+        }
+      }
+
+      &:hover {
+        background-color: var(--color-bg-1);
+        a {
+          color: $color--primary-blue;
+        }
+      }
+
+      a {
+        color: var(--color-link-menu);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 10px;
+        font-size: 15px;
+        position: relative;
+        transition: color 0.15s ease-in-out;
+      }
+
+      span.is-icon {
+        font-size: 22px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 30px;
+      }
+    }
+  }
+}
+
+.UserProfile-bg-dark {
+  position: fixed;
+  top: 40px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 40px);
+  z-index: 99999;
+  background-color: #ffffff30;
+  transform: translateX(-100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease-in-out;
+  backdrop-filter: blur(5px);
+  &.is-active {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+[data-theme="dark"] {
+  .UserProfile-bg-dark {
+    background-color: #00000030;
+  }
+}

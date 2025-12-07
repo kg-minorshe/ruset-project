@@ -1,0 +1,163 @@
+.ContextMenu {
+  position: fixed;
+  border-radius: 5px;
+  z-index: 1000;
+  width: 100%;
+  height: calc(100vh - 40px);
+  top: 0;
+  left: 0;
+  animation: contextMenuAnimBG 0.05s forwards ease-in;
+  &:not(.is-active) {
+    animation: contextMenuAnimCloseBG 0.05s forwards ease-in;
+  }
+  .contextMenuContainer {
+    background-color: var(--bg-context-menu);
+    color: var(--color-context-menu);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transform: translate(0%, -100%);
+    border-radius: 5px;
+    position: absolute;
+    min-width: 245px;
+    animation: contextMenuAnim 0.1s forwards ease-in-out;
+    &:not(.is-active) {
+      animation: contextMenuAnimClose 0.15s forwards ease-in-out;
+    }
+    &.is-reverse-y {
+      transform: translate(0%);
+    }
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    user-select: none;
+  }
+
+  ul {
+    list-style: none;
+    padding: 8px 0;
+    margin: 0;
+    &:first-child {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    hr {
+      border: none;
+      outline: none;
+      height: 1px;
+      width: 100%;
+      background-color: var(--color-context-menu);
+      opacity: 0.1;
+      margin-top: 0;
+    }
+  }
+
+  li {
+    padding: 7px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.1s;
+    font-size: 15px;
+    &.is-smiles {
+      cursor: default;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 0 15px;
+      span {
+        cursor: pointer;
+        font-size: 19px;
+        padding: 3px;
+        border-radius: 5.5px;
+        transition: background-color 0.1s;
+        &.is-dotted {
+          color: var(--color-text-description);
+        }
+        &.is-active {
+          background-color: var(--transparent-select-blue-2);
+        }
+        &:hover {
+          background-color: #006aff36;
+        }
+      }
+    }
+    span {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
+  li:hover:not(.is-smiles) {
+    background-color: var(--bg-context-menu-hover);
+  }
+
+  .menuIcon {
+    margin-right: 10px;
+    font-size: 18px;
+  }
+
+  .cancelOption {
+    border-top: 1px solid #eee;
+    text-align: center;
+    color: #007aff;
+    font-weight: 500;
+  }
+  .is-smiles {
+    span {
+      position: relative;
+
+      &.active-reaction {
+        background-color: #0069ff26;
+        border-radius: 4px;
+      }
+    }
+  }
+}
+
+@keyframes contextMenuAnim {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes contextMenuAnimClose {
+  0% {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes contextMenuAnimBG {
+  0% {
+    background-color: transparent;
+  }
+  100% {
+    background-color: var(--bg-transparent-blur-2);
+  }
+}
+
+@keyframes contextMenuAnimCloseBG {
+  0% {
+    background-color: var(--bg-transparent-blur-2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
