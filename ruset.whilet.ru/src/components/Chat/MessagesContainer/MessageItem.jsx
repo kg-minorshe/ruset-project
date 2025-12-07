@@ -1,12 +1,11 @@
 import React, { memo, useCallback, useEffect, useRef } from "react";
 import {
   BiPin,
-  BiCheck,
-  BiCheckDouble,
   BiReply,
   BiTimeFive,
   BiX,
 } from "react-icons/bi";
+import { MdDone, MdDoneAll } from "react-icons/md";
 import { BsEye } from "react-icons/bs";
 import { MessageMedia } from "@/components/Chat/MessageMedia/MessageMedia";
 
@@ -135,6 +134,14 @@ const MessageItem = memo(
       if (views < 1000000) return `${(views / 1000).toFixed(1)}K`;
       return `${(views / 1000000).toFixed(1)}M`;
     }, []);
+
+    const getViewsCount = useCallback(() => {
+      if (message.views === undefined || message.views === null) return 0;
+      if (typeof message.views === "object") {
+        return message.views.count ?? 0;
+      }
+      return message.views;
+    }, [message.views]);
 
     const renderReactions = useCallback(() => {
       const reactions = message.reactions || {};
@@ -311,19 +318,37 @@ const MessageItem = memo(
           </span>
         );
       }
+
       if (chatInfo?.type === "channel") return null;
-      if (message.is_read) {
+      if (message.sender !== "me") return null;
+
+      const viewsCount = getViewsCount();
+      const isRead = Boolean(message.is_read);
+      const hasDelivery = viewsCount > 0;
+
+      if (!hasDelivery) {
         return (
-          <span className="message-status read" title="Прочитано">
-            <BiCheckDouble />
+          <span className="message-status telegram sent" title="Отправлено">
+            <MdDone className="check first" />
           </span>
         );
       }
 
-      if (message.sender !== "me") return null;
       return (
-        <span className="message-status sent" title="Отправлено">
-          <BiCheck />
+        <span
+          className={`message-status telegram ${
+            isRead ? "read" : "delivered"
+          }`}
+          title={isRead ? "Прочитано" : "Доставлено"}
+        >
+          {isRead ? (
+            <MdDoneAll className="check first" />
+          ) : (
+            <>
+              <MdDone className="check first" />
+              <MdDone className="check second" />
+            </>
+          )}
         </span>
       );
     };
@@ -414,7 +439,7 @@ const MessageItem = memo(
               ) : null}
               {chatInfo?.type === "channel" && message.views !== undefined ? (
                 <span className="views">
-                  <BsEye /> {formatViews(message.views)}
+                  <BsEye /> {formatViews(getViewsCount())}
                 </span>
               ) : null}
               {message.is_pinned ? (

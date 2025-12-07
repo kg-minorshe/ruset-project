@@ -434,6 +434,54 @@ export function ChatComponent({
     scheduleVisibleCollection();
   }, [scheduleVisibleCollection]);
 
+  const getMessageViewsCount = useCallback((message) => {
+    if (!message || message.views === undefined || message.views === null) {
+      return 0;
+    }
+
+    if (typeof message.views === "object") {
+      return message.views.count ?? 0;
+    }
+
+    return message.views;
+  }, []);
+
+  const dispatchLastMessageStatus = useCallback(
+    (messageList) => {
+      if (!chatInfo?.id || chatInfo?.type === "channel") return;
+      if (!currentUser?.id || !Array.isArray(messageList)) return;
+
+      const lastOwnMessage =
+        [...messageList].filter((msg) => msg.user_id === currentUser.id).pop() ||
+        null;
+
+      if (!lastOwnMessage) return;
+
+      const detail = {
+        chatId: chatInfo.id,
+        messageId: lastOwnMessage.id,
+        isRead: Boolean(lastOwnMessage.is_read),
+        viewsCount: getMessageViewsCount(lastOwnMessage),
+        sendingStatus: lastOwnMessage.sendingStatus,
+      };
+
+      window.dispatchEvent(
+        new CustomEvent("chat:lastMessageStatus", { detail })
+      );
+    },
+    [chatInfo?.id, chatInfo?.type, currentUser?.id, getMessageViewsCount]
+  );
+
+  useEffect(() => {
+    dispatchLastMessageStatus(messages);
+  }, [messages, dispatchLastMessageStatus]);
+
+  useEffect(() => {
+    if (!chatInfo?.id || messages.length === 0) return;
+
+    dispatchLastMessageStatus(messages);
+  }, [chatInfo?.id, messages, dispatchLastMessageStatus]);
+
   const closeSSE = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -744,8 +792,8 @@ export function ChatComponent({
           break;
 
         case "view_update":
-          setMessages((prev) =>
-            prev.map((msg) =>
+          setMessages((prev) => {
+            const updated = prev.map((msg) =>
               msg.id === data.message_id
                 ? {
                     ...msg,
@@ -756,8 +804,10 @@ export function ChatComponent({
                     },
                   }
                 : msg
-            )
-          );
+            );
+
+            return updated;
+          });
           console.log(
             `✅ Обновлены просмотры для сообщения ${data.message_id}`
           );
@@ -801,6 +851,7 @@ export function ChatComponent({
       isWindowFocused,
       isChatInViewport,
       queueViewedMessages,
+      dispatchLastMessageStatus,
     ]
   );
 
