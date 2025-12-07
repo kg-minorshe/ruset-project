@@ -620,11 +620,14 @@ class SSEManager {
 
       const viewedBy = views.map((v) => v.user_id);
       const hasViewed = viewedBy.includes(connection.userId);
+      const hasOtherViews = viewedBy.some((id) => id !== authorId);
 
       this.sendSSE(connection.res, "view_update", {
         message_id: messageId,
         chat_id: chatId,
-        is_read: hasViewed || connection.userId === authorId,
+        is_read:
+          hasViewed ||
+          (connection.userId === authorId && hasOtherViews),
         viewed_by: viewedBy,
         view_count: views.length,
       });
@@ -885,8 +888,11 @@ class SSEManager {
     });
 
     const viewedBy = views.map((v) => v.user_id);
+    const hasUserViewed = viewedBy.includes(currentUserId);
+    const hasOtherViews = viewedBy.some((id) => id !== message.user_id);
     const isRead =
-      viewedBy.includes(currentUserId) || message.user_id === currentUserId;
+      hasUserViewed ||
+      (currentUserId === message.user_id && hasOtherViews);
 
     return {
       id: message.id,
