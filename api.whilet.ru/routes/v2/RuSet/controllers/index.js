@@ -538,12 +538,19 @@ class RuSetController {
           result.description = chatData.description;
         }
 
-        result.lastMessage = {
-          text: lastMessage?.text || "Сообщения отсутствуют",
-          timestamp: lastMessage?.created_at || null,
-          user_id: lastMessage?.user_id || null,
-          is_read: lastMessage?.is_read || null,
-        };
+        result.lastMessage = lastMessage
+          ? {
+              text: lastMessage.text || "Сообщения отсутствуют",
+              timestamp: lastMessage.created_at || null,
+              user_id: lastMessage.user_id || null,
+              is_read: lastMessage.is_read ?? false,
+            }
+          : {
+              text: "Сообщения отсутствуют",
+              timestamp: null,
+              user_id: null,
+              is_read: null,
+            };
 
         result.unreadCount = unreadCount;
         result.peopleCount = participantsCount;
