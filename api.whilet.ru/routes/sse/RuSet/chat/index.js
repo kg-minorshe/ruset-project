@@ -493,6 +493,9 @@ class SSEManager {
           // 4. Проверяем просмотры через updated_at
           await this.checkViewUpdates(connection, chatId, bufferedLastCheck);
 
+          // 5. Проверяем изменения закреплений сообщений через updates
+          await this.checkPinUpdates(connection, chatId, bufferedLastCheck);
+
           // Обновляем время последней проверки
           this.lastUpdateCheck.get(chatId).set(connId, new Date());
         }
@@ -562,8 +565,8 @@ class SSEManager {
   async checkMessageEdits(connection, chatId, lastCheck) {
     try {
       const [editedMessages] = await this.db.execute(
-        `SELECT id, text, updated_at 
-                 FROM messages 
+        `SELECT id, text, updated_at
+                 FROM messages
                  WHERE chat_id = ? 
                  AND is_edited = 1 
                  AND updated_at > ? 
@@ -585,11 +588,43 @@ class SSEManager {
     }
   }
 
+  async checkPinUpdates(connection, chatId, lastCheck) {
+    try {
+      const [pinUpdates] = await this.db.execute(
+        `SELECT message_id, created_at
+                 FROM updates
+                 WHERE chat_id = ?
+                 AND type = 'message_pin'
+                 AND created_at > ?`,
+        [chatId, lastCheck]
+      );
+
+      for (const pinUpdate of pinUpdates) {
+        const [messages] = await this.db.execute(
+          `SELECT is_pinned, updated_at FROM messages WHERE id = ?`,
+          [pinUpdate.message_id]
+        );
+
+        const message = messages[0];
+        if (!message) continue;
+
+        this.sendSSE(connection.res, "message_pinned", {
+          message_id: pinUpdate.message_id,
+          chat_id: chatId,
+          is_pinned: Boolean(message.is_pinned),
+          updated_at: message.updated_at,
+        });
+      }
+    } catch (error) {
+      console.error("Ошибка проверки закреплений сообщений:", error);
+    }
+  }
+
   async checkViewUpdates(connection, chatId, lastCheck) {
     try {
       const [updatedViews] = await this.db.execute(
-        `SELECT DISTINCT message_id 
-                 FROM message_views 
+        `SELECT DISTINCT message_id
+                 FROM message_views
                  WHERE message_id IN (
                      SELECT id FROM messages WHERE chat_id = ?
                  ) AND updated_at > ?`,
