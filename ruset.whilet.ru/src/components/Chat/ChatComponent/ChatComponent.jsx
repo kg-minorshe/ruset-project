@@ -937,7 +937,9 @@ export function ChatComponent({
 
     setChatLoadingStatus("updating");
 
-    const lastMessageId = await getLastMessageIdFromDB();
+    const lastMessageId = hasLoadedFromCacheRef.current
+      ? 0
+      : await getLastMessageIdFromDB();
 
     try {
       const url =
