@@ -308,6 +308,13 @@ const Messages = {
     return rows[0]?.count || 0;
   },
 
+  async markAsRead(chatId, excludeUserId) {
+    await poolRuSet.query(
+      "UPDATE messages SET is_read = 1, updated_at = NOW() WHERE chat_id = ? AND user_id != ? AND is_read = 0",
+      [chatId, excludeUserId]
+    );
+  },
+
   async getLastMessage(chatId) {
     const [rows] = await poolRuSet.query(
       "SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 1",

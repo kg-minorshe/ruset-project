@@ -411,6 +411,8 @@ class RuSetController {
         });
       }
 
+      await Messages.markAsRead(chatInfo.chat_id, userId);
+
       const messages = await Messages.findByChatId(chatInfo.chat_id, {
         limit,
         beforeId,
