@@ -433,14 +433,9 @@ class SSEManager {
                 data: formattedMessage,
               });
 
-              if (connection.userId !== message.user_id) {
-                await this.markMessageAsViewed(
-                  connId,
-                  chatId,
-                  message.id,
-                  connection.userId
-                );
-              }
+              // Не отмечаем сообщение прочитанным автоматически —
+              // пользователь должен явно подтвердить просмотр
+              // через соответствующий запрос.
             }
           }
         }

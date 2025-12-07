@@ -557,17 +557,6 @@ class RuSetController {
               user_id: null,
               is_read: null,
             };
-
-        if (
-          lastMessageId &&
-          result.lastMessage.user_id !== userId &&
-          unreadCount === 0 &&
-          result.lastMessage.is_read === 0
-        ) {
-          await Messages.update(lastMessageId, { is_read: true });
-          result.lastMessage.is_read = true;
-        }
-
         result.unreadCount = unreadCount;
         result.peopleCount = participantsCount;
         result.is_pinned = false;
