@@ -918,6 +918,53 @@ class SSEManager {
     }
   }
 
+  async markMessagesAsViewed(connectionId, chatId, messageIds, userId) {
+    try {
+      const connection = this.connections.get(connectionId);
+      if (!connection) {
+        throw new Error("Соединение не найдено");
+      }
+
+      const uniqueIds = [...new Set(messageIds)].filter((id) => !!id);
+      if (uniqueIds.length === 0) {
+        return true;
+      }
+
+      const placeholders = uniqueIds.map(() => "?").join(", ");
+
+      const [existing] = await this.db.execute(
+        `SELECT message_id FROM message_views
+                 WHERE message_id IN (${placeholders}) AND user_id = ?`,
+        [...uniqueIds, userId]
+      );
+
+      const existingIds = new Set(existing.map((row) => row.message_id));
+      const idsToInsert = uniqueIds.filter((id) => !existingIds.has(id));
+
+      if (idsToInsert.length === 0) {
+        return true;
+      }
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const values = idsToInsert
+        .map(() => "(?, ?, ?)")
+        .join(", ");
+
+      await this.db.execute(
+        `INSERT INTO message_views (message_id, user_id, viewed_at)
+                 VALUES ${values}`,
+        idsToInsert.flatMap((id) => [id, userId, timestamp])
+      );
+
+      await this.updateChatListForParticipants(chatId);
+
+      return true;
+    } catch (error) {
+      console.error("Ошибка массовой отметки сообщений как просмотренных:", error);
+      throw error;
+    }
+  }
+
   async markAllMessagesAsViewed(connectionId, chatId, userId) {
     try {
       const connection = this.connections.get(connectionId);
@@ -1129,6 +1176,45 @@ router.post("/mark-as-viewed", express.json(), async (req, res) => {
     });
   } catch (error) {
     console.error("Ошибка отметки сообщения как просмотренного:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+router.post("/mark-many-viewed", express.json(), async (req, res) => {
+  try {
+    const { connectionId, chat_id, message_ids } = req.body;
+
+    if (!connectionId || !chat_id || !Array.isArray(message_ids)) {
+      return res.status(400).json({
+        success: false,
+        message: "Отсутствуют обязательные параметры",
+      });
+    }
+
+    const connection = sseManager.connections.get(connectionId);
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: "Соединение не найдено",
+      });
+    }
+
+    await sseManager.markMessagesAsViewed(
+      connectionId,
+      chat_id,
+      message_ids,
+      connection.userId
+    );
+
+    res.json({
+      success: true,
+      message: "Сообщения отмечены как просмотренные",
+    });
+  } catch (error) {
+    console.error("Ошибка массовой отметки сообщений как просмотренных:", error);
     res.status(500).json({
       success: false,
       message: error.message,

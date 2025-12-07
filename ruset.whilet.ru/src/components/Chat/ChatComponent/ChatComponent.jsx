@@ -83,7 +83,6 @@ export function ChatComponent({
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
-  const loadedIsOld = useRef(false);
   const MAX_RECONNECT_ATTEMPTS = 5;
 
   // Новые состояния для статуса загрузки
@@ -94,8 +93,9 @@ export function ChatComponent({
   const [unreadCount, setUnreadCount] = useState(0);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   const [showUnreadBadge, setShowUnreadBadge] = useState(false);
-  const lastVisibleMessageRef = useRef(null);
-  const observerRef = useRef(null);
+  const viewCheckRafRef = useRef(null);
+  const pendingViewIdsRef = useRef(new Set());
+  const flushViewsTimeoutRef = useRef(null);
 
   const messagesContainerRef = useRef(null);
   const selectedMessageRef = useRef(null);
@@ -139,76 +139,146 @@ export function ChatComponent({
     };
   }, [chatLoadingStatus]);
 
-  // Функция для отслеживания видимых сообщений
-  const setupIntersectionObserver = useCallback(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
+  const markMessagesAsViewed = useCallback(
+    async (messageIds = []) => {
+      if (!connectionId || !chatInfo?.id) return;
+
+      const uniqueIds = [...new Set(messageIds)];
+      if (uniqueIds.length === 0) return;
+
+      try {
+        const response = await httpRSCap(
+          process.env.NEXT_PUBLIC_URL_API_NODE +
+            "/sse/ruset/chat/mark-many-viewed",
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              connectionId: connectionId,
+              chat_id: chatInfo.id,
+              message_ids: uniqueIds,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          console.warn("Не удалось отметить сообщения как прочитанные");
+        }
+      } catch (error) {
+        console.error("Ошибка отметки сообщений как просмотренных:", error);
+      }
+    },
+    [connectionId, chatInfo?.id]
+  );
+
+  const flushQueuedViews = useCallback(() => {
+    if (flushViewsTimeoutRef.current) {
+      clearTimeout(flushViewsTimeoutRef.current);
+      flushViewsTimeoutRef.current = null;
     }
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const messageId = parseInt(
-              entry.target.getAttribute("data-message-id")
-            );
-            const message = messages.find((msg) => msg.id === messageId);
+    const ids = Array.from(pendingViewIdsRef.current);
+    pendingViewIdsRef.current.clear();
 
-            if (
-              message &&
-              !message.is_read &&
-              message.user_id !== currentUser.id
-            ) {
-              markMessageAsViewed(messageId);
-            }
+    if (ids.length === 0) return;
 
-            lastVisibleMessageRef.current = messageId;
-          }
-        });
-      },
-      {
-        root: messagesContainerRef.current,
-        threshold: 0.5,
-      }
+    setMessages((prev) =>
+      prev.map((m) =>
+        ids.includes(m.id) ? { ...m, is_read: true } : m
+      )
     );
 
-    const messageElements = document.querySelectorAll(".message-item");
-    messageElements.forEach((el) => observerRef.current.observe(el));
-  }, [messages, currentUser?.id]);
+    markMessagesAsViewed(ids);
+  }, [markMessagesAsViewed]);
 
-  // Функция для подсчета непрочитанных сообщений
+  const queueViewedMessages = useCallback(
+    (messageIds) => {
+      if (!messageIds || messageIds.length === 0) return;
+
+      messageIds.forEach((id) => pendingViewIdsRef.current.add(id));
+
+      if (!flushViewsTimeoutRef.current) {
+        flushViewsTimeoutRef.current = setTimeout(() => {
+          flushQueuedViews();
+        }, 150);
+      }
+    },
+    [flushQueuedViews]
+  );
+
+  const collectVisibleUnread = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const unreadMessages = messages.filter(
+      (msg) => !msg.is_read && msg.user_id !== currentUser.id
+    );
+
+    const visibleUnreadIds = [];
+
+    unreadMessages.forEach((msg) => {
+      const el = document.getElementById(`message-${msg.id}`);
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.height === 0) return;
+
+      const visibleHeight =
+        Math.min(rect.bottom, containerRect.bottom) -
+        Math.max(rect.top, containerRect.top);
+
+      const visibility = visibleHeight / rect.height;
+
+      if (visibility >= 0.6) {
+        visibleUnreadIds.push(msg.id);
+      }
+    });
+
+    if (visibleUnreadIds.length > 0) {
+      queueViewedMessages(visibleUnreadIds);
+    }
+  }, [messages, currentUser?.id, queueViewedMessages]);
+
+  const scheduleVisibleCollection = useCallback(() => {
+    if (viewCheckRafRef.current) {
+      cancelAnimationFrame(viewCheckRafRef.current);
+    }
+
+    viewCheckRafRef.current = requestAnimationFrame(() => {
+      viewCheckRafRef.current = null;
+      collectVisibleUnread();
+    });
+  }, [collectVisibleUnread]);
+
   const updateUnreadCount = useCallback(() => {
-    if (!messages.length || !messagesContainerRef.current) return;
+    if (!messagesContainerRef.current) {
+      setUnreadCount(0);
+      setShowUnreadBadge(false);
+      setFirstUnreadMessageId(null);
+      return;
+    }
 
     const container = messagesContainerRef.current;
     const scrollBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
 
-    if (scrollBottom > 100) {
-      const unreadMessages = messages.filter(
-        (msg) =>
-          !msg.is_read &&
-          msg.user_id !== currentUser.id &&
-          (!lastVisibleMessageRef.current ||
-            msg.id > lastVisibleMessageRef.current)
-      );
+    const unreadMessages = messages.filter(
+      (msg) => !msg.is_read && msg.user_id !== currentUser.id
+    );
 
-      setUnreadCount(unreadMessages.length);
-      setShowUnreadBadge(unreadMessages.length > 0);
-
-      if (unreadMessages.length > 0 && !firstUnreadMessageId) {
-        setFirstUnreadMessageId(unreadMessages[0].id);
-      }
-    } else {
-      setUnreadCount(0);
-      setShowUnreadBadge(false);
-      setFirstUnreadMessageId(null);
-    }
-  }, [messages, currentUser?.id, firstUnreadMessageId]);
+    setUnreadCount(unreadMessages.length);
+    setShowUnreadBadge(unreadMessages.length > 0 && scrollBottom > 100);
+    setFirstUnreadMessageId(unreadMessages.length ? unreadMessages[0].id : null);
+  }, [messages, currentUser?.id]);
 
   useEffect(() => {
+    scheduleVisibleCollection();
     updateUnreadCount();
-  }, [messages, updateUnreadCount]);
+  }, [messages, scheduleVisibleCollection, updateUnreadCount]);
 
   // Функция для прокрутки к непрочитанным сообщениям
   const scrollToUnread = useCallback(() => {
@@ -229,40 +299,6 @@ export function ChatComponent({
       }
     }
   }, [firstUnreadMessageId]);
-
-  // Функция для отметки сообщения как просмотренного
-  const markMessageAsViewed = useCallback(
-    async (messageId) => {
-      if (!connectionId || !chatInfo?.id) return;
-
-      try {
-        const response = await httpRSCap(
-          process.env.NEXT_PUBLIC_URL_API_NODE +
-            "/sse/ruset/chat/mark-as-viewed",
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              connectionId: connectionId,
-              chat_id: chatInfo.id,
-              message_id: messageId,
-            }),
-          }
-        );
-
-        if (response.ok) {
-          // Локальное обновление произойдет через SSE событие view_update
-          console.log(`✅ Сообщение ${messageId} отмечено как просмотренное`);
-        }
-      } catch (error) {
-        console.error("Ошибка отметки сообщения как просмотренного:", error);
-      }
-    },
-    [connectionId, chatInfo?.id]
-  );
 
   // Функция для отметки всех сообщений как просмотренных
   const markAllAsViewed = useCallback(async () => {
@@ -293,6 +329,11 @@ export function ChatComponent({
 
       if (response.ok) {
         console.log(`✅ Все сообщения отмечены как просмотренные`);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.user_id !== currentUser.id ? { ...m, is_read: true } : m
+          )
+        );
         setUnreadCount(0);
         setShowUnreadBadge(false);
       }
@@ -308,6 +349,7 @@ export function ChatComponent({
 
     const handleScroll = () => {
       updateUnreadCount();
+      scheduleVisibleCollection();
 
       const scrollBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight;
@@ -319,20 +361,7 @@ export function ChatComponent({
 
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
-  }, [updateUnreadCount, markAllAsViewed]);
-
-  // Настройка наблюдателя при изменении сообщений
-  useEffect(() => {
-    if (messages.length > 0 && isChatReady) {
-      setupIntersectionObserver();
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [messages, isChatReady, setupIntersectionObserver]);
+  }, [updateUnreadCount, markAllAsViewed, scheduleVisibleCollection]);
 
   const shouldScrollToBottom = useCallback(
     (newMessage) => {
@@ -438,8 +467,15 @@ export function ChatComponent({
       setUnreadCount(0);
       setFirstUnreadMessageId(null);
       setShowUnreadBadge(false);
-      lastVisibleMessageRef.current = null;
-
+      pendingViewIdsRef.current.clear();
+      if (viewCheckRafRef.current) {
+        cancelAnimationFrame(viewCheckRafRef.current);
+        viewCheckRafRef.current = null;
+      }
+      if (flushViewsTimeoutRef.current) {
+        clearTimeout(flushViewsTimeoutRef.current);
+        flushViewsTimeoutRef.current = null;
+      }
       setChatLoadingStatus("loading");
 
       if (selectedMessageRef.current) {
@@ -462,8 +498,12 @@ export function ChatComponent({
         clearTimeout(longPressTimerRef.current);
       }
 
-      if (observerRef.current) {
-        observerRef.current.disconnect();
+      if (viewCheckRafRef.current) {
+        cancelAnimationFrame(viewCheckRafRef.current);
+      }
+
+      if (flushViewsTimeoutRef.current) {
+        clearTimeout(flushViewsTimeoutRef.current);
       }
     };
   }, [closeSSE]);
@@ -565,11 +605,6 @@ export function ChatComponent({
             }, 300);
           }
 
-          if (!loadedIsOld.current) {
-            setTimeout(() => {
-              loadedIsOld.current = true;
-            }, 3000);
-          }
           break;
 
         case "older_messages":
@@ -1518,7 +1553,7 @@ export function ChatComponent({
       chatMessagesLoading ||
       !connectionId ||
       !chatInfo?.id ||
-      !loadedIsOld.current
+      !hasMore
     ) {
       return;
     }
