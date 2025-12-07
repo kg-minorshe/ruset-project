@@ -6,8 +6,8 @@ import {
   BiGroup,
   BiBroadcast,
   BiBot,
-  BiCheck,
-  BiCheckDouble,
+  BiTimeFive,
+  BiX,
   BiPin,
   BiVolumeMute,
   BiSearch,
@@ -18,6 +18,7 @@ import {
   BiRefresh,
   BiError,
 } from "react-icons/bi";
+import { MdDone } from "react-icons/md";
 import { httpRSCap } from "@/utils/http";
 import { walert } from "@/utils/miniModal";
 import {
@@ -481,6 +482,107 @@ export function ChatList({
     return preview;
   };
 
+  const getMessageViewsCount = (message) => {
+    if (!message || message.views === undefined || message.views === null)
+      return 0;
+    if (typeof message.views === "object") {
+      return message.views.count ?? 0;
+    }
+    return message.views;
+  };
+
+  const renderLastMessageStatus = (chat) => {
+    const lastMessage = chat?.lastMessage;
+
+    if (!lastMessage || chat?.type === CHAT_TYPES.CHANNEL) return null;
+    if (lastMessage.user_id !== currentUser?.id) return null;
+
+    if (
+      lastMessage.sendingStatus === "uploading" ||
+      lastMessage.sendingStatus === "sending" ||
+      lastMessage.sendingStatus === "loading"
+    ) {
+      return (
+        <span className="message-status sending" title="Отправка...">
+          <BiTimeFive />
+        </span>
+      );
+    }
+
+    if (lastMessage.sendingStatus === "failed") {
+      return (
+        <span className="message-status failed" title="Не удалось отправить">
+          <BiX />
+        </span>
+      );
+    }
+
+    const viewsCount = getMessageViewsCount(lastMessage);
+    const isRead = Boolean(lastMessage.is_read);
+    const hasDelivery = viewsCount > 0;
+
+    if (!hasDelivery) {
+      return (
+        <span className="message-status telegram sent" title="Отправлено">
+          <MdDone className="check first" />
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className={`message-status telegram ${isRead ? "read" : "delivered"}`}
+        title={isRead ? "Прочитано" : "Доставлено"}
+      >
+        <MdDone className="check first" />
+        <MdDone className="check second" />
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    const handleLastMessageStatus = (event) => {
+      const detail = event?.detail;
+      if (!detail) return;
+
+      const { chatId, messageId, isRead, viewsCount, sendingStatus } = detail;
+      if (!chatId || !messageId) return;
+
+      setChats((prevChats) =>
+        prevChats.map((chat) => {
+          if (chat?.id !== chatId) return chat;
+          if (!chat.lastMessage || chat.lastMessage.id !== messageId) return chat;
+
+          const currentViews = chat.lastMessage.views;
+          const nextViews =
+            viewsCount === undefined
+              ? currentViews
+              : typeof currentViews === "object"
+              ? { ...currentViews, count: viewsCount }
+              : { count: viewsCount };
+
+          return {
+            ...chat,
+            lastMessage: {
+              ...chat.lastMessage,
+              is_read: isRead ?? chat.lastMessage.is_read,
+              sendingStatus: sendingStatus ?? chat.lastMessage.sendingStatus,
+              views: nextViews,
+            },
+          };
+        })
+      );
+    };
+
+    window.addEventListener("chat:lastMessageStatus", handleLastMessageStatus);
+
+    return () =>
+      window.removeEventListener(
+        "chat:lastMessageStatus",
+        handleLastMessageStatus
+      );
+  }, []);
+
   useEffect(() => {
     if (!selectedChatId) return;
 
@@ -637,32 +739,24 @@ export function ChatList({
                     {chat?.lastMessage?.timestamp &&
                       formatTime(chat.lastMessage.timestamp)}
                   </div>
-                </div>
-
-                <div className="chat-footer">
-                  <div className="last-message">
-                    {getLastMessagePreview(chat)}
                   </div>
-                  {chat?.unreadCount > 0 && (
-                    <div className="unread-badge">
-                      {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+
+                  <div className="chat-footer">
+                    <div className="last-message">
+                      {getLastMessagePreview(chat)}
                     </div>
-                  )}
-                  <div className="chat-indicators">
-                    {chat?.lastMessage?.user_id === currentUser?.id && (
-                      <span className="message-status">
-                        {chat?.lastMessage.is_read ? (
-                          <BiCheckDouble />
-                        ) : (
-                          <BiCheck />
-                        )}
-                      </span>
+                    {chat?.unreadCount > 0 && (
+                      <div className="unread-badge">
+                        {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                      </div>
                     )}
+                    <div className="chat-indicators">
+                      {renderLastMessageStatus(chat)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))
         ) : (
           <div className="is-no-chats">
             {searchQuery
