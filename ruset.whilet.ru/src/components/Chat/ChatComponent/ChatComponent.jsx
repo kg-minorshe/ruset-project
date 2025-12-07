@@ -599,6 +599,27 @@ export function ChatComponent({
     }
   }, [chatData.login]);
 
+  const normalizeReactions = useCallback(
+    (reactions = {}) => {
+      const userId = currentUser?.id;
+
+      return Object.entries(reactions).reduce((acc, [emoji, data]) => {
+        const users = Array.isArray(data?.users) ? data.users : [];
+        const count =
+          typeof data?.count === "number" ? data.count : Math.max(users.length, 0);
+
+        acc[emoji] = {
+          count,
+          users,
+          hasReacted: userId ? users.includes(userId) : Boolean(data?.hasReacted),
+        };
+
+        return acc;
+      }, {});
+    },
+    [currentUser?.id]
+  );
+
   const handleSSEMessage = useCallback(
     (event, data) => {
       if (
@@ -628,6 +649,7 @@ export function ChatComponent({
                 msg?.login === currentUser.login
                   ? "me"
                   : "user",
+              reactions: normalizeReactions(msg.reactions),
             }));
 
             if (hasLoadedFromCacheRef.current && prev.length > 0) {
@@ -695,6 +717,7 @@ export function ChatComponent({
                 msg?.login === currentUser.login
                   ? "me"
                   : "user",
+              reactions: normalizeReactions(msg.reactions),
             }));
 
             const existingIds = new Set(prev.map((m) => m.id));
@@ -732,6 +755,8 @@ export function ChatComponent({
                   msg?.id === newMessage.id ? { ...msg, ...newMessage } : msg
                 );
               }
+
+              newMessage.reactions = normalizeReactions(newMessage.reactions);
 
               const existsRecentMe = prev.some(
                 (msg) =>
@@ -779,7 +804,7 @@ export function ChatComponent({
               // Полностью заменяем реакции на актуальные с сервера
               return {
                 ...msg,
-                reactions: data.reactions || {},
+                reactions: normalizeReactions(data.reactions),
               };
             })
           );
@@ -844,6 +869,7 @@ export function ChatComponent({
       currentUser?.id,
       chatInfo?.id,
       chatData.login,
+      normalizeReactions,
       scrollToBottomIfNeeded,
       currentUser?.login,
       isWindowFocused,
