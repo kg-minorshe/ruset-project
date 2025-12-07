@@ -606,6 +606,13 @@ class SSEManager {
 
   async sendViewUpdate(connection, chatId, messageId) {
     try {
+      const [[messageRow]] = await this.db.execute(
+        `SELECT user_id FROM messages WHERE id = ? LIMIT 1`,
+        [messageId]
+      );
+
+      const authorId = messageRow?.user_id;
+
       const [views] = await this.db.execute(
         `SELECT user_id, viewed_at FROM message_views WHERE message_id = ?`,
         [messageId]
@@ -617,7 +624,7 @@ class SSEManager {
       this.sendSSE(connection.res, "view_update", {
         message_id: messageId,
         chat_id: chatId,
-        is_read: hasViewed || viewedBy.length > 0,
+        is_read: hasViewed || connection.userId === authorId,
         viewed_by: viewedBy,
         view_count: views.length,
       });
