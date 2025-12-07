@@ -96,6 +96,8 @@ export function ChatComponent({
   const viewCheckRafRef = useRef(null);
   const pendingViewIdsRef = useRef(new Set());
   const flushViewsTimeoutRef = useRef(null);
+  const [isWindowFocused, setIsWindowFocused] = useState(!document.hidden);
+  const [isChatInViewport, setIsChatInViewport] = useState(true);
 
   const messagesContainerRef = useRef(null);
   const selectedMessageRef = useRef(null);
@@ -213,6 +215,8 @@ export function ChatComponent({
     const container = messagesContainerRef.current;
     if (!container) return;
 
+    if (!isWindowFocused || !isChatInViewport) return;
+
     const containerRect = container.getBoundingClientRect();
     const unreadMessages = messages.filter(
       (msg) => !msg.is_read && msg.user_id !== currentUser.id
@@ -241,7 +245,7 @@ export function ChatComponent({
     if (visibleUnreadIds.length > 0) {
       queueViewedMessages(visibleUnreadIds);
     }
-  }, [messages, currentUser?.id, queueViewedMessages]);
+  }, [messages, currentUser?.id, queueViewedMessages, isWindowFocused, isChatInViewport]);
 
   const scheduleVisibleCollection = useCallback(() => {
     if (viewCheckRafRef.current) {
@@ -314,6 +318,60 @@ export function ChatComponent({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [updateUnreadCount, scheduleVisibleCollection]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const focused = !document.hidden && document.hasFocus();
+      setIsWindowFocused(focused);
+
+      if (focused) {
+        scheduleVisibleCollection();
+        updateUnreadCount();
+      }
+    };
+
+    const handleFocus = () => {
+      setIsWindowFocused(true);
+      scheduleVisibleCollection();
+      updateUnreadCount();
+    };
+
+    const handleBlur = () => {
+      setIsWindowFocused(false);
+    };
+
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [scheduleVisibleCollection, updateUnreadCount]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        setIsChatInViewport(entry?.isIntersecting ?? true);
+
+        if (entry?.isIntersecting && isWindowFocused) {
+          scheduleVisibleCollection();
+          updateUnreadCount();
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [scheduleVisibleCollection, updateUnreadCount, isWindowFocused]);
+
   const shouldScrollToBottom = useCallback(
     (newMessage) => {
       if (!messagesContainerRef.current) return false;
@@ -323,14 +381,13 @@ export function ChatComponent({
         container.scrollHeight - container.scrollTop - container.clientHeight <
         100;
 
-      return (
-        isNearBottom &&
-        (newMessage.sender === "me" ||
-          newMessage.login === currentUser.login ||
-          messages.length === 0)
-      );
+      if (newMessage.sender === "me" || newMessage.user_id === currentUser.id) {
+        return true;
+      }
+
+      return isNearBottom;
     },
-    [messages.length, currentUser?.login]
+    [currentUser?.id]
   );
 
   const scrollToBottomIfNeeded = useCallback(
