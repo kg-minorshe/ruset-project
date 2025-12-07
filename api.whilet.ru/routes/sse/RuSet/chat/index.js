@@ -419,6 +419,8 @@ class SSEManager {
         if (messages.length === 0) continue;
 
         for (const message of messages) {
+          const activeViewers = new Set();
+
           for (const connId of connectionIds) {
             const connection = this.connections.get(connId);
             if (connection) {
@@ -433,21 +435,31 @@ class SSEManager {
                 data: formattedMessage,
               });
 
-              // Не отмечаем сообщение прочитанным автоматически —
-              // пользователь должен явно подтвердить просмотр
-              // через соответствующий запрос.
+              if (
+                connection.userId !== message.user_id &&
+                connection.chats.has(chatId)
+              ) {
+                activeViewers.add(connection.userId);
+              }
+            }
+          }
+
+          if (activeViewers.size > 0) {
+            await this.markMessageViewedForUsers(
+              chatId,
+              message.id,
+              [...activeViewers]
+            );
+          }
+
+          const lastMessageId = messages[messages.length - 1].id;
+          for (const connId of connectionIds) {
+            const connection = this.connections.get(connId);
+            if (connection && connection.chats.has(chatId)) {
+              connection.chats.set(chatId, lastMessageId);
             }
           }
         }
-
-        const lastMessageId = messages[messages.length - 1].id;
-        for (const connId of connectionIds) {
-          const connection = this.connections.get(connId);
-          if (connection && connection.chats.has(chatId)) {
-            connection.chats.set(chatId, lastMessageId);
-          }
-        }
-      }
     } catch (error) {
       console.error("Ошибка проверки сообщений:", error);
     }
@@ -947,6 +959,10 @@ class SSEManager {
         throw new Error("Соединение не найдено");
       }
 
+      if (!connection.chats.has(parseInt(chatId))) {
+        throw new Error("Пользователь не находится в чате");
+      }
+
       const [existing] = await this.db.execute(
         `SELECT id FROM message_views WHERE message_id = ? AND user_id = ?`,
         [messageId, userId]
@@ -975,11 +991,51 @@ class SSEManager {
     }
   }
 
+  async markMessageViewedForUsers(chatId, messageId, userIds) {
+    try {
+      const uniqueUsers = [...new Set(userIds)];
+      if (uniqueUsers.length === 0) return true;
+
+      const placeholders = uniqueUsers.map(() => "?").join(", ");
+      const [existing] = await this.db.execute(
+        `SELECT user_id FROM message_views
+                 WHERE message_id = ? AND user_id IN (${placeholders})`,
+        [messageId, ...uniqueUsers]
+      );
+
+      const existingSet = new Set(existing.map((row) => row.user_id));
+      const usersToInsert = uniqueUsers.filter((id) => !existingSet.has(id));
+
+      if (usersToInsert.length === 0) return true;
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const values = usersToInsert.map(() => "(?, ?, ?)").join(", ");
+
+      await this.db.execute(
+        `INSERT INTO message_views (message_id, user_id, viewed_at)
+                 VALUES ${values}`,
+        usersToInsert.flatMap((id) => [messageId, id, timestamp])
+      );
+
+      await this.updateChatListForParticipants(chatId);
+      await this.broadcastViewUpdates(chatId, messageId);
+
+      return true;
+    } catch (error) {
+      console.error("Ошибка автоматической отметки просмотра:", error);
+      throw error;
+    }
+  }
+
   async markMessagesAsViewed(connectionId, chatId, messageIds, userId) {
     try {
       const connection = this.connections.get(connectionId);
       if (!connection) {
         throw new Error("Соединение не найдено");
+      }
+
+      if (!connection.chats.has(parseInt(chatId))) {
+        throw new Error("Пользователь не находится в чате");
       }
 
       const uniqueIds = [...new Set(messageIds)].filter((id) => !!id);
@@ -1031,8 +1087,12 @@ class SSEManager {
         throw new Error("Соединение не найдено");
       }
 
+      if (!connection.chats.has(parseInt(chatId))) {
+        throw new Error("Пользователь не находится в чате");
+      }
+
       const [unviewedMessages] = await this.db.execute(
-        `SELECT m.id 
+        `SELECT m.id
                  FROM messages m
                  LEFT JOIN message_views mv ON m.id = mv.message_id AND mv.user_id = ?
                  WHERE m.chat_id = ? AND m.user_id != ? AND mv.id IS NULL`,
