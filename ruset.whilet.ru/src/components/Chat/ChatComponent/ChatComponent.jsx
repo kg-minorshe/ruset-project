@@ -476,6 +476,12 @@ export function ChatComponent({
     dispatchLastMessageStatus(messages);
   }, [messages, dispatchLastMessageStatus]);
 
+  useEffect(() => {
+    if (!chatInfo?.id || messages.length === 0) return;
+
+    dispatchLastMessageStatus(messages);
+  }, [chatInfo?.id, messages, dispatchLastMessageStatus]);
+
   const closeSSE = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -800,7 +806,6 @@ export function ChatComponent({
                 : msg
             );
 
-            dispatchLastMessageStatus(updated);
             return updated;
           });
           console.log(
