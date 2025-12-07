@@ -7,7 +7,8 @@ import {
   BiBroadcast,
   BiBot,
   BiCheck,
-  BiCheckDouble,
+  BiTimeFive,
+  BiX,
   BiPin,
   BiVolumeMute,
   BiSearch,
@@ -481,6 +482,64 @@ export function ChatList({
     return preview;
   };
 
+  const getMessageViewsCount = (message) => {
+    if (!message || message.views === undefined || message.views === null)
+      return 0;
+    if (typeof message.views === "object") {
+      return message.views.count ?? 0;
+    }
+    return message.views;
+  };
+
+  const renderLastMessageStatus = (chat) => {
+    const lastMessage = chat?.lastMessage;
+
+    if (!lastMessage || chat?.type === CHAT_TYPES.CHANNEL) return null;
+    if (lastMessage.user_id !== currentUser?.id) return null;
+
+    if (
+      lastMessage.sendingStatus === "uploading" ||
+      lastMessage.sendingStatus === "sending" ||
+      lastMessage.sendingStatus === "loading"
+    ) {
+      return (
+        <span className="message-status sending" title="Отправка...">
+          <BiTimeFive />
+        </span>
+      );
+    }
+
+    if (lastMessage.sendingStatus === "failed") {
+      return (
+        <span className="message-status failed" title="Не удалось отправить">
+          <BiX />
+        </span>
+      );
+    }
+
+    const viewsCount = getMessageViewsCount(lastMessage);
+    const isRead = Boolean(lastMessage.is_read);
+    const hasDelivery = viewsCount > 0;
+
+    if (!hasDelivery) {
+      return (
+        <span className="message-status telegram sent" title="Отправлено">
+          <BiCheck className="check first" />
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className={`message-status telegram ${isRead ? "read" : "delivered"}`}
+        title={isRead ? "Прочитано" : "Доставлено"}
+      >
+        <BiCheck className="check first" />
+        <BiCheck className="check second" />
+      </span>
+    );
+  };
+
   useEffect(() => {
     if (!selectedChatId) return;
 
@@ -637,32 +696,24 @@ export function ChatList({
                     {chat?.lastMessage?.timestamp &&
                       formatTime(chat.lastMessage.timestamp)}
                   </div>
-                </div>
-
-                <div className="chat-footer">
-                  <div className="last-message">
-                    {getLastMessagePreview(chat)}
                   </div>
-                  {chat?.unreadCount > 0 && (
-                    <div className="unread-badge">
-                      {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+
+                  <div className="chat-footer">
+                    <div className="last-message">
+                      {getLastMessagePreview(chat)}
                     </div>
-                  )}
-                  <div className="chat-indicators">
-                    {chat?.lastMessage?.user_id === currentUser?.id && (
-                      <span className="message-status">
-                        {chat?.lastMessage.is_read ? (
-                          <BiCheckDouble />
-                        ) : (
-                          <BiCheck />
-                        )}
-                      </span>
+                    {chat?.unreadCount > 0 && (
+                      <div className="unread-badge">
+                        {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                      </div>
                     )}
+                    <div className="chat-indicators">
+                      {renderLastMessageStatus(chat)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))
         ) : (
           <div className="is-no-chats">
             {searchQuery
