@@ -713,12 +713,21 @@ class SSEManager {
 
       for (const chat of chats) {
         const [lastMessage] = await this.db.execute(
-          `SELECT text, created_at, user_id 
-                     FROM messages 
-                     WHERE chat_id = ? 
-                     ORDER BY created_at DESC 
-                     LIMIT 1`,
-          [chat.id]
+          `SELECT m.id,
+                  m.text,
+                  m.created_at,
+                  m.user_id,
+                  CASE
+                    WHEN m.user_id = ? THEN 1
+                    WHEN mv.id IS NOT NULL THEN 1
+                    ELSE 0
+                  END AS is_read
+             FROM messages m
+             LEFT JOIN message_views mv ON mv.message_id = m.id AND mv.user_id = ?
+             WHERE m.chat_id = ?
+             ORDER BY m.created_at DESC
+             LIMIT 1`,
+          [userId, userId, chat.id]
         );
 
         const [unreadResult] = await this.db.execute(
@@ -787,6 +796,17 @@ class SSEManager {
             "https://mfs.whilet.ru/s?path=/images/regular/default_ico.png";
         }
 
+        const lastMessageRow = lastMessage[0];
+        let lastMessageIsRead = lastMessageRow?.is_read ?? 0;
+
+        if (lastMessageRow) {
+          if (lastMessageRow.user_id === userId) {
+            lastMessageIsRead = 1;
+          } else if (unreadResult[0]?.count > 0) {
+            lastMessageIsRead = 0;
+          }
+        }
+
         const enrichedChat = {
           id: chat.id,
           type: chat.type,
@@ -797,14 +817,16 @@ class SSEManager {
           lastMessage:
             lastMessage.length > 0
               ? {
-                  text: lastMessage[0].text || "Нет сообщений",
-                  timestamp: lastMessage[0].created_at,
-                  user_id: lastMessage[0].user_id,
+                  text: lastMessageRow.text || "Нет сообщений",
+                  timestamp: lastMessageRow.created_at,
+                  user_id: lastMessageRow.user_id,
+                  is_read: lastMessageIsRead,
                 }
               : {
                   text: "Нет сообщений",
                   timestamp: null,
                   user_id: null,
+                  is_read: null,
                 },
           unreadCount: unreadResult[0]?.count || 0,
           peopleCount: participantsResult[0]?.count || 1,
