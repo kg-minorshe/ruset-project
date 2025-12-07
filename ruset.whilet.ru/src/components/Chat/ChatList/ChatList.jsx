@@ -6,7 +6,6 @@ import {
   BiGroup,
   BiBroadcast,
   BiBot,
-  BiCheck,
   BiTimeFive,
   BiX,
   BiPin,
@@ -19,6 +18,7 @@ import {
   BiRefresh,
   BiError,
 } from "react-icons/bi";
+import { MdDone } from "react-icons/md";
 import { httpRSCap } from "@/utils/http";
 import { walert } from "@/utils/miniModal";
 import {
@@ -524,7 +524,7 @@ export function ChatList({
     if (!hasDelivery) {
       return (
         <span className="message-status telegram sent" title="Отправлено">
-          <BiCheck className="check first" />
+          <MdDone className="check first" />
         </span>
       );
     }
@@ -534,11 +534,54 @@ export function ChatList({
         className={`message-status telegram ${isRead ? "read" : "delivered"}`}
         title={isRead ? "Прочитано" : "Доставлено"}
       >
-        <BiCheck className="check first" />
-        <BiCheck className="check second" />
+        <MdDone className="check first" />
+        <MdDone className="check second" />
       </span>
     );
   };
+
+  useEffect(() => {
+    const handleLastMessageStatus = (event) => {
+      const detail = event?.detail;
+      if (!detail) return;
+
+      const { chatId, messageId, isRead, viewsCount, sendingStatus } = detail;
+      if (!chatId || !messageId) return;
+
+      setChats((prevChats) =>
+        prevChats.map((chat) => {
+          if (chat?.id !== chatId) return chat;
+          if (!chat.lastMessage || chat.lastMessage.id !== messageId) return chat;
+
+          const currentViews = chat.lastMessage.views;
+          const nextViews =
+            viewsCount === undefined
+              ? currentViews
+              : typeof currentViews === "object"
+              ? { ...currentViews, count: viewsCount }
+              : { count: viewsCount };
+
+          return {
+            ...chat,
+            lastMessage: {
+              ...chat.lastMessage,
+              is_read: isRead ?? chat.lastMessage.is_read,
+              sendingStatus: sendingStatus ?? chat.lastMessage.sendingStatus,
+              views: nextViews,
+            },
+          };
+        })
+      );
+    };
+
+    window.addEventListener("chat:lastMessageStatus", handleLastMessageStatus);
+
+    return () =>
+      window.removeEventListener(
+        "chat:lastMessageStatus",
+        handleLastMessageStatus
+      );
+  }, []);
 
   useEffect(() => {
     if (!selectedChatId) return;

@@ -1,12 +1,11 @@
 import React, { memo, useCallback, useEffect, useRef } from "react";
 import {
   BiPin,
-  BiCheck,
-  BiCheckDouble,
   BiReply,
   BiTimeFive,
   BiX,
 } from "react-icons/bi";
+import { MdDone, MdDoneAll } from "react-icons/md";
 import { BsEye } from "react-icons/bs";
 import { MessageMedia } from "@/components/Chat/MessageMedia/MessageMedia";
 
@@ -330,7 +329,7 @@ const MessageItem = memo(
       if (!hasDelivery) {
         return (
           <span className="message-status telegram sent" title="Отправлено">
-            <BiCheck className="check first" />
+            <MdDone className="check first" />
           </span>
         );
       }
@@ -342,8 +341,14 @@ const MessageItem = memo(
           }`}
           title={isRead ? "Прочитано" : "Доставлено"}
         >
-          <BiCheck className="check first" />
-          <BiCheck className="check second" />
+          {isRead ? (
+            <MdDoneAll className="check first" />
+          ) : (
+            <>
+              <MdDone className="check first" />
+              <MdDone className="check second" />
+            </>
+          )}
         </span>
       );
     };
