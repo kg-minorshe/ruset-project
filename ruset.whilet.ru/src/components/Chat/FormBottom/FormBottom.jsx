@@ -48,7 +48,7 @@ export const FormBottom = ({
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const savedSelection = useRef(null);
+  const savedCaretPosition = useRef(null);
 
   const { canSendMessages, canSendNow, getSlowModeTimeLeft } = useSlowMode(
     chatInfo,
@@ -160,27 +160,180 @@ export const FormBottom = ({
     handleSendMessage
   );
 
+  const getNodeLength = (node) => {
+    if (!node) return 0;
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent?.length || 0;
+    if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.classList?.contains("message-emoji")
+    ) {
+      return 1;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") return 1;
+
+    let length = 0;
+    node.childNodes.forEach((child) => {
+      length += getNodeLength(child);
+    });
+    return length;
+  };
+
+  const getOffsetWithinNode = (node, offset) => {
+    if (node.nodeType === Node.TEXT_NODE) return offset;
+    if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.classList?.contains("message-emoji")
+    ) {
+      return Math.min(offset, 1);
+    }
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
+      return Math.min(offset, 1);
+    }
+
+    let position = 0;
+    for (let i = 0; i < offset && i < node.childNodes.length; i++) {
+      position += getNodeLength(node.childNodes[i]);
+    }
+    return position;
+  };
+
+  const getCaretPosition = () => {
+    const inputEl = inputRef.current;
+    const selection = window.getSelection();
+    if (!inputEl || !selection || selection.rangeCount === 0)
+      return savedCaretPosition.current;
+
+    const range = selection.getRangeAt(0);
+    if (
+      !inputEl.contains(range.startContainer) ||
+      !inputEl.contains(range.endContainer)
+    ) {
+      return savedCaretPosition.current;
+    }
+
+    let position = 0;
+    let found = false;
+
+    const walk = (node) => {
+      if (found) return;
+      if (node === range.startContainer) {
+        position += getOffsetWithinNode(node, range.startOffset);
+        found = true;
+        return;
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        position += node.textContent?.length || 0;
+        return;
+      }
+
+      if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        node.classList?.contains("message-emoji")
+      ) {
+        position += 1;
+        return;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
+        position += 1;
+        return;
+      }
+
+      node.childNodes.forEach((child) => walk(child));
+    };
+
+    walk(inputEl);
+
+    if (found) {
+      savedCaretPosition.current = position;
+      return position;
+    }
+
+    return savedCaretPosition.current;
+  };
+
+  const createRangeFromPosition = (root, position) => {
+    const range = document.createRange();
+    let remaining = position;
+    let placed = false;
+
+    const place = (node) => {
+      if (placed) return;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const length = node.textContent?.length || 0;
+        if (remaining <= length) {
+          range.setStart(node, remaining);
+          range.collapse(true);
+          placed = true;
+          return;
+        }
+        remaining -= length;
+        return;
+      }
+
+      if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        node.classList?.contains("message-emoji")
+      ) {
+        const parent = node.parentNode || root;
+        const index = Array.prototype.indexOf.call(parent.childNodes, node);
+        const offset = index + (remaining > 0 ? 1 : 0);
+        remaining = Math.max(remaining - 1, 0);
+        range.setStart(parent, offset);
+        range.collapse(true);
+        placed = true;
+        return;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
+        const parent = node.parentNode || root;
+        const index = Array.prototype.indexOf.call(parent.childNodes, node);
+        const offset = index + (remaining > 0 ? 1 : 0);
+        remaining = Math.max(remaining - 1, 0);
+        range.setStart(parent, offset);
+        range.collapse(true);
+        placed = true;
+        return;
+      }
+
+      const children = Array.from(node.childNodes);
+      for (const child of children) {
+        place(child);
+        if (placed) return;
+      }
+    };
+
+    place(root);
+
+    if (!placed) {
+      range.selectNodeContents(root);
+      range.collapse(false);
+    }
+
+    return range;
+  };
+
   const setSelectionFromRange = (range) => {
     const selection = window.getSelection();
     if (!selection || !range) return null;
 
     selection.removeAllRanges();
     selection.addRange(range);
-    savedSelection.current = range.cloneRange();
+    const position = getCaretPosition();
+    if (typeof position === "number") {
+      savedCaretPosition.current = position;
+    }
     return range;
   };
 
   const captureSelection = () => {
     const inputEl = inputRef.current;
-    const selection = window.getSelection();
-    if (!inputEl || !selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (
-      inputEl.contains(range.startContainer) &&
-      inputEl.contains(range.endContainer)
-    ) {
-      savedSelection.current = range.cloneRange();
+    if (!inputEl) return;
+    const position = getCaretPosition();
+    if (typeof position === "number") {
+      savedCaretPosition.current = position;
     }
   };
 
@@ -209,21 +362,21 @@ export const FormBottom = ({
       inputEl.contains(activeRange.startContainer) &&
       inputEl.contains(activeRange.endContainer)
     ) {
+      const position = getCaretPosition();
+      if (typeof position === "number") {
+        return createRangeFromPosition(inputEl, position);
+      }
       return activeRange.cloneRange();
     }
 
-    const savedRange = savedSelection.current;
-    if (
-      savedRange &&
-      inputEl.contains(savedRange.startContainer) &&
-      inputEl.contains(savedRange.endContainer)
-    ) {
-      return savedRange.cloneRange();
+    if (typeof savedCaretPosition.current === "number") {
+      return createRangeFromPosition(inputEl, savedCaretPosition.current);
     }
 
     const fallbackRange = document.createRange();
     fallbackRange.selectNodeContents(inputEl);
     fallbackRange.collapse(false);
+    savedCaretPosition.current = getNodeLength(inputEl);
     return fallbackRange;
   };
 
