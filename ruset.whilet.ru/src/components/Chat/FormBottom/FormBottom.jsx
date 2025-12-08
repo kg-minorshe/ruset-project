@@ -168,13 +168,15 @@ export const FormBottom = ({
     const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
     setCurrentText(cleanHtml);
     resizeInput(e.currentTarget);
-    selectionRef.current = saveSelection(inputRef.current);
+    const selection = saveSelection(inputRef.current);
+    if (selection) selectionRef.current = selection;
   };
 
   const captureSelection = () => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-    selectionRef.current = saveSelection(inputEl);
+    const selection = saveSelection(inputEl);
+    if (selection) selectionRef.current = selection;
   };
 
   useEffect(() => {
@@ -371,7 +373,17 @@ export const FormBottom = ({
         />
         {!isRecording && (
           <EmojiButton
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              captureSelection();
+            }}
+            onClick={() => {
+              captureSelection();
+              setShowEmojiPicker(!showEmojiPicker);
+              if (inputRef.current) {
+                requestAnimationFrame(() => inputRef.current.focus());
+              }
+            }}
             disabled={isInputDisabled}
           />
         )}
