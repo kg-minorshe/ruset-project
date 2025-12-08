@@ -48,6 +48,7 @@ export const FormBottom = ({
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const savedSelection = useRef(null);
 
   const { canSendMessages, canSendNow, getSlowModeTimeLeft } = useSlowMode(
     chatInfo,
@@ -159,39 +160,110 @@ export const FormBottom = ({
     handleSendMessage
   );
 
+  const setSelectionFromRange = (range) => {
+    const selection = window.getSelection();
+    if (!selection || !range) return null;
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedSelection.current = range.cloneRange();
+    return range;
+  };
+
+  const captureSelection = () => {
+    const inputEl = inputRef.current;
+    const selection = window.getSelection();
+    if (!inputEl || !selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (
+      inputEl.contains(range.startContainer) &&
+      inputEl.contains(range.endContainer)
+    ) {
+      savedSelection.current = range.cloneRange();
+    }
+  };
+
+  useEffect(() => {
+    const handleSelectionChange = () => captureSelection();
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
+
   const handleInputChange = (e) => {
     const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
     setCurrentText(cleanHtml);
     resizeInput(e.currentTarget);
+    captureSelection();
+  };
+
+  const getWorkingRange = () => {
+    const inputEl = inputRef.current;
+    if (!inputEl) return null;
+
+    const selection = window.getSelection();
+    const hasSelection = selection && selection.rangeCount > 0;
+    const activeRange = hasSelection ? selection.getRangeAt(0) : null;
+    if (
+      activeRange &&
+      inputEl.contains(activeRange.startContainer) &&
+      inputEl.contains(activeRange.endContainer)
+    ) {
+      return activeRange.cloneRange();
+    }
+
+    const savedRange = savedSelection.current;
+    if (
+      savedRange &&
+      inputEl.contains(savedRange.startContainer) &&
+      inputEl.contains(savedRange.endContainer)
+    ) {
+      return savedRange.cloneRange();
+    }
+
+    const fallbackRange = document.createRange();
+    fallbackRange.selectNodeContents(inputEl);
+    fallbackRange.collapse(false);
+    return fallbackRange;
   };
 
   const insertHtmlAtCursor = (html) => {
     const inputEl = inputRef.current;
+    const safeHtml = sanitizeMessageHtml(html);
     if (!inputEl) {
-      setCurrentText((prev) => sanitizeMessageHtml((prev || "") + html));
+      setCurrentText((prev) => sanitizeMessageHtml((prev || "") + safeHtml));
       return;
     }
 
     inputEl.focus();
+    let range = getWorkingRange();
+    if (!range) return;
+
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      inputEl.insertAdjacentHTML("beforeend", html);
-    } else {
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const fragment = range.createContextualFragment(html);
-      const lastNode = fragment.lastChild;
-      range.insertNode(fragment);
-      if (lastNode) {
-        range.setStartAfter(lastNode);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
+    if (selection) {
+      setSelectionFromRange(range);
+    }
+
+    range.deleteContents();
+    const fragment = range.createContextualFragment(safeHtml);
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      setSelectionFromRange(range);
     }
 
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
-    inputEl.innerHTML = cleanHtml;
+    if (cleanHtml !== inputEl.innerHTML) {
+      inputEl.innerHTML = cleanHtml;
+      const endRange = document.createRange();
+      endRange.selectNodeContents(inputEl);
+      endRange.collapse(false);
+      setSelectionFromRange(endRange);
+    }
+
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };
@@ -199,7 +271,7 @@ export const FormBottom = ({
   const handleEmojiSelect = (char, svg) => {
     const imageUrl = svg || getEmojiImageUrl(char);
     const emoji = imageUrl
-      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" />`
+      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" draggable="false" />`
       : char;
     insertHtmlAtCursor(emoji);
   };
@@ -285,6 +357,9 @@ export const FormBottom = ({
           value={currentText}
           onInput={handleInputChange}
           onKeyDown={handleKeyDown}
+          onKeyUp={captureSelection}
+          onMouseUp={captureSelection}
+          onFocus={captureSelection}
           onPaste={(e) => {
             const items = e.clipboardData?.items;
             if (!items) return;
