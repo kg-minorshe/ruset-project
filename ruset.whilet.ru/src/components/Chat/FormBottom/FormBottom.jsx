@@ -21,6 +21,11 @@ import {
   hasMessageContent,
   sanitizeMessageHtml,
 } from "@/utils/emoji";
+import {
+  placeCaretAtEnd,
+  restoreSelection,
+  saveSelection,
+} from "@/utils/contentEditableSelection";
 
 import { BiSend, BiPaperclip } from "react-icons/bi";
 
@@ -159,182 +164,17 @@ export const FormBottom = ({
     isInputDisabled,
     handleSendMessage
   );
-
-  const getNodeLength = (node) => {
-    if (!node) return 0;
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent?.length || 0;
-    if (
-      node.nodeType === Node.ELEMENT_NODE &&
-      node.classList?.contains("message-emoji")
-    ) {
-      return 1;
-    }
-    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") return 1;
-
-    let length = 0;
-    node.childNodes.forEach((child) => {
-      length += getNodeLength(child);
-    });
-    return length;
-  };
-
-  const getOffsetWithinNode = (node, offset) => {
-    if (node.nodeType === Node.TEXT_NODE) return offset;
-    if (
-      node.nodeType === Node.ELEMENT_NODE &&
-      node.classList?.contains("message-emoji")
-    ) {
-      return Math.min(offset, 1);
-    }
-    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
-      return Math.min(offset, 1);
-    }
-
-    let position = 0;
-    for (let i = 0; i < offset && i < node.childNodes.length; i++) {
-      position += getNodeLength(node.childNodes[i]);
-    }
-    return position;
-  };
-
-  const getCaretPosition = () => {
-    const inputEl = inputRef.current;
-    const selection = window.getSelection();
-    if (!inputEl || !selection || selection.rangeCount === 0)
-      return savedCaretPosition.current;
-
-    const range = selection.getRangeAt(0);
-    if (
-      !inputEl.contains(range.startContainer) ||
-      !inputEl.contains(range.endContainer)
-    ) {
-      return savedCaretPosition.current;
-    }
-
-    let position = 0;
-    let found = false;
-
-    const walk = (node) => {
-      if (found) return;
-      if (node === range.startContainer) {
-        position += getOffsetWithinNode(node, range.startOffset);
-        found = true;
-        return;
-      }
-
-      if (node.nodeType === Node.TEXT_NODE) {
-        position += node.textContent?.length || 0;
-        return;
-      }
-
-      if (
-        node.nodeType === Node.ELEMENT_NODE &&
-        node.classList?.contains("message-emoji")
-      ) {
-        position += 1;
-        return;
-      }
-
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
-        position += 1;
-        return;
-      }
-
-      node.childNodes.forEach((child) => walk(child));
-    };
-
-    walk(inputEl);
-
-    if (found) {
-      savedCaretPosition.current = position;
-      return position;
-    }
-
-    return savedCaretPosition.current;
-  };
-
-  const createRangeFromPosition = (root, position) => {
-    const range = document.createRange();
-    let remaining = position;
-    let placed = false;
-
-    const place = (node) => {
-      if (placed) return;
-
-      if (node.nodeType === Node.TEXT_NODE) {
-        const length = node.textContent?.length || 0;
-        if (remaining <= length) {
-          range.setStart(node, remaining);
-          range.collapse(true);
-          placed = true;
-          return;
-        }
-        remaining -= length;
-        return;
-      }
-
-      if (
-        node.nodeType === Node.ELEMENT_NODE &&
-        node.classList?.contains("message-emoji")
-      ) {
-        const parent = node.parentNode || root;
-        const index = Array.prototype.indexOf.call(parent.childNodes, node);
-        const offset = index + (remaining > 0 ? 1 : 0);
-        remaining = Math.max(remaining - 1, 0);
-        range.setStart(parent, offset);
-        range.collapse(true);
-        placed = true;
-        return;
-      }
-
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
-        const parent = node.parentNode || root;
-        const index = Array.prototype.indexOf.call(parent.childNodes, node);
-        const offset = index + (remaining > 0 ? 1 : 0);
-        remaining = Math.max(remaining - 1, 0);
-        range.setStart(parent, offset);
-        range.collapse(true);
-        placed = true;
-        return;
-      }
-
-      const children = Array.from(node.childNodes);
-      for (const child of children) {
-        place(child);
-        if (placed) return;
-      }
-    };
-
-    place(root);
-
-    if (!placed) {
-      range.selectNodeContents(root);
-      range.collapse(false);
-    }
-
-    return range;
-  };
-
-  const setSelectionFromRange = (range) => {
-    const selection = window.getSelection();
-    if (!selection || !range) return null;
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-    const position = getCaretPosition();
-    if (typeof position === "number") {
-      savedCaretPosition.current = position;
-    }
-    return range;
+  const handleInputChange = (e) => {
+    const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
+    setCurrentText(cleanHtml);
+    resizeInput(e.currentTarget);
+    savedSelection.current = saveSelection(inputRef.current);
   };
 
   const captureSelection = () => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-    const position = getCaretPosition();
-    if (typeof position === "number") {
-      savedCaretPosition.current = position;
-    }
+    savedSelection.current = saveSelection(inputEl);
   };
 
   useEffect(() => {
@@ -346,54 +186,37 @@ export const FormBottom = ({
   useLayoutEffect(() => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-    if (typeof savedCaretPosition.current !== "number") return;
+    if (!savedSelection.current) return;
 
-    const length = getNodeLength(inputEl);
-    const caret = Math.min(savedCaretPosition.current, length);
-    const range = createRangeFromPosition(inputEl, caret);
-    setSelectionFromRange(range);
+    const restored = restoreSelection(inputEl, savedSelection.current);
+    if (!restored) {
+      const fallback = placeCaretAtEnd(inputEl);
+      savedSelection.current = saveSelection(inputEl);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(fallback);
+      }
+    }
   }, [currentText]);
-
-  const handleInputChange = (e) => {
-    const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
-    setCurrentText(cleanHtml);
-    resizeInput(e.currentTarget);
-    captureSelection();
-  };
 
   const getWorkingRange = () => {
     const inputEl = inputRef.current;
     if (!inputEl) return null;
 
-    const selection = window.getSelection();
-    const hasSelection = selection && selection.rangeCount > 0;
-    const activeRange = hasSelection ? selection.getRangeAt(0) : null;
-    if (
-      activeRange &&
-      inputEl.contains(activeRange.startContainer) &&
-      inputEl.contains(activeRange.endContainer)
-    ) {
-      const position = getCaretPosition();
-      if (typeof position === "number") {
-        return createRangeFromPosition(inputEl, position);
-      }
-      return activeRange.cloneRange();
-    }
+    const restored = restoreSelection(inputEl, savedSelection.current);
+    if (restored) return restored;
 
-    if (typeof savedCaretPosition.current === "number") {
-      return createRangeFromPosition(inputEl, savedCaretPosition.current);
-    }
-
-    const fallbackRange = document.createRange();
-    fallbackRange.selectNodeContents(inputEl);
-    fallbackRange.collapse(false);
-    savedCaretPosition.current = getNodeLength(inputEl);
-    return fallbackRange;
+    const selectionRange = document.createRange();
+    selectionRange.selectNodeContents(inputEl);
+    selectionRange.collapse(false);
+    return selectionRange;
   };
 
   const insertHtmlAtCursor = (html) => {
     const inputEl = inputRef.current;
     const safeHtml = sanitizeMessageHtml(html);
+
     if (!inputEl) {
       setCurrentText((prev) => sanitizeMessageHtml((prev || "") + safeHtml));
       return;
@@ -405,7 +228,8 @@ export const FormBottom = ({
 
     const selection = window.getSelection();
     if (selection) {
-      setSelectionFromRange(range);
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
 
     range.deleteContents();
@@ -416,22 +240,21 @@ export const FormBottom = ({
     if (lastNode) {
       range.setStartAfter(lastNode);
       range.collapse(true);
-      setSelectionFromRange(range);
     }
 
-    const caretAfterInsert = getCaretPosition();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const snapshot = saveSelection(inputEl);
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
     if (cleanHtml !== inputEl.innerHTML) {
       inputEl.innerHTML = cleanHtml;
-      const length = getNodeLength(inputEl);
-      const caret = Math.min(
-        typeof caretAfterInsert === "number" ? caretAfterInsert : length,
-        length
-      );
-      const restoredRange = createRangeFromPosition(inputEl, caret);
-      setSelectionFromRange(restoredRange);
+      restoreSelection(inputEl, snapshot) || placeCaretAtEnd(inputEl);
     }
 
+    savedSelection.current = saveSelection(inputEl);
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };
