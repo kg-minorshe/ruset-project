@@ -191,7 +191,17 @@ export const FormBottom = ({
     }
 
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
-    inputEl.innerHTML = cleanHtml;
+    if (cleanHtml !== inputEl.innerHTML) {
+      inputEl.innerHTML = cleanHtml;
+      const selectionAfterSanitize = window.getSelection();
+      if (selectionAfterSanitize) {
+        selectionAfterSanitize.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(inputEl);
+        range.collapse(false);
+        selectionAfterSanitize.addRange(range);
+      }
+    }
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };
@@ -199,7 +209,7 @@ export const FormBottom = ({
   const handleEmojiSelect = (char, svg) => {
     const imageUrl = svg || getEmojiImageUrl(char);
     const emoji = imageUrl
-      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" />`
+      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" draggable="false" />`
       : char;
     insertHtmlAtCursor(emoji);
   };
