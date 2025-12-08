@@ -271,7 +271,7 @@ export const FormBottom = ({
   const handleEmojiSelect = (char, svg) => {
     const imageUrl = svg || getEmojiImageUrl(char);
     const emoji = imageUrl
-      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" draggable="false" />`
+      ? `<img src="${imageUrl}" alt="${char}" class="message-emoji" draggable="false" />`
       : char;
     insertHtmlAtCursor(emoji);
   };
