@@ -53,7 +53,7 @@ export const FormBottom = ({
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const savedSelection = useRef(null);
+  const savedCaretPosition = useRef(null);
 
   const { canSendMessages, canSendNow, getSlowModeTimeLeft } = useSlowMode(
     chatInfo,
