@@ -53,7 +53,7 @@ export const FormBottom = ({
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const savedCaretPosition = useRef(null);
+  const selectionRef = useRef(null);
 
   const { canSendMessages, canSendNow, getSlowModeTimeLeft } = useSlowMode(
     chatInfo,
@@ -168,13 +168,13 @@ export const FormBottom = ({
     const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
     setCurrentText(cleanHtml);
     resizeInput(e.currentTarget);
-    savedSelection.current = saveSelection(inputRef.current);
+    selectionRef.current = saveSelection(inputRef.current);
   };
 
   const captureSelection = () => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-    savedSelection.current = saveSelection(inputEl);
+    selectionRef.current = saveSelection(inputEl);
   };
 
   useEffect(() => {
@@ -186,12 +186,12 @@ export const FormBottom = ({
   useLayoutEffect(() => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-    if (!savedSelection.current) return;
+    if (!selectionRef.current) return;
 
-    const restored = restoreSelection(inputEl, savedSelection.current);
+    const restored = restoreSelection(inputEl, selectionRef.current);
     if (!restored) {
       const fallback = placeCaretAtEnd(inputEl);
-      savedSelection.current = saveSelection(inputEl);
+      selectionRef.current = saveSelection(inputEl);
       const selection = window.getSelection();
       if (selection) {
         selection.removeAllRanges();
@@ -204,7 +204,7 @@ export const FormBottom = ({
     const inputEl = inputRef.current;
     if (!inputEl) return null;
 
-    const restored = restoreSelection(inputEl, savedSelection.current);
+    const restored = restoreSelection(inputEl, selectionRef.current);
     if (restored) return restored;
 
     const selectionRange = document.createRange();
@@ -254,7 +254,7 @@ export const FormBottom = ({
       restoreSelection(inputEl, snapshot) || placeCaretAtEnd(inputEl);
     }
 
-    savedSelection.current = saveSelection(inputEl);
+    selectionRef.current = saveSelection(inputEl);
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };
