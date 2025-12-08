@@ -1,5 +1,5 @@
 // FormBottom.jsx
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./FormBottom.scss";
 import MessageInput from "./components/MessageInput/MessageInput";
 import AttachmentPreview from "./components/AttachmentPreview/AttachmentPreview";
@@ -343,6 +343,17 @@ export const FormBottom = ({
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, []);
 
+  useLayoutEffect(() => {
+    const inputEl = inputRef.current;
+    if (!inputEl) return;
+    if (typeof savedCaretPosition.current !== "number") return;
+
+    const length = getNodeLength(inputEl);
+    const caret = Math.min(savedCaretPosition.current, length);
+    const range = createRangeFromPosition(inputEl, caret);
+    setSelectionFromRange(range);
+  }, [currentText]);
+
   const handleInputChange = (e) => {
     const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
     setCurrentText(cleanHtml);
@@ -408,13 +419,17 @@ export const FormBottom = ({
       setSelectionFromRange(range);
     }
 
+    const caretAfterInsert = getCaretPosition();
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
     if (cleanHtml !== inputEl.innerHTML) {
       inputEl.innerHTML = cleanHtml;
-      const endRange = document.createRange();
-      endRange.selectNodeContents(inputEl);
-      endRange.collapse(false);
-      setSelectionFromRange(endRange);
+      const length = getNodeLength(inputEl);
+      const caret = Math.min(
+        typeof caretAfterInsert === "number" ? caretAfterInsert : length,
+        length
+      );
+      const restoredRange = createRangeFromPosition(inputEl, caret);
+      setSelectionFromRange(restoredRange);
     }
 
     setCurrentText(cleanHtml);
