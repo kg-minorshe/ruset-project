@@ -78,16 +78,20 @@
     line-height: 1.5;
     max-height: 300px;
     overflow-y: auto;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    min-height: 44px;
+    display: block;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    &::placeholder {
-      font-size: 15px;
-    }
     &::-webkit-scrollbar {
       display: none;
     }
-    &::placeholder {
+    &:empty::before {
+      content: attr(data-placeholder);
       color: var(--color-text-description);
+      pointer-events: none;
+      display: block;
     }
     &:focus {
       border-color: #007bff;
@@ -192,7 +196,8 @@
     font-weight: bold;
   }
 
-  .message-input:disabled {
+  .message-input:disabled,
+  .message-input[contenteditable="false"] {
     opacity: 0.6;
     cursor: not-allowed;
   }

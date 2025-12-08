@@ -16,6 +16,11 @@ import { useInputHandler } from "./hooks/useInputHandler";
 import { useMessageSender } from "./hooks/useMessageSender";
 import useMediaRecorder from "./hooks/useMediaRecorder";
 import { useFileUpload } from "./hooks/useFileUpload";
+import {
+  getEmojiImageUrl,
+  hasMessageContent,
+  sanitizeMessageHtml,
+} from "@/utils/emoji";
 
 import { BiSend, BiPaperclip } from "react-icons/bi";
 
@@ -108,7 +113,9 @@ export const FormBottom = ({
 
   const handleSendMessage = async (e) => {
     e?.preventDefault?.();
-    if (!currentText.trim() && mediaAttachments.length === 0) return;
+    const safeText = sanitizeMessageHtml(currentText);
+
+    if (!hasMessageContent(safeText) && mediaAttachments.length === 0) return;
 
     if (!canSendMessages()) return;
     if (!canSendNow()) return;
@@ -116,6 +123,7 @@ export const FormBottom = ({
     setNewMessage("");
     setTimeout(() => {
       if (inputRef.current) {
+        inputRef.current.innerHTML = "";
         inputRef.current.style.height = "auto";
         inputRef.current.style.height =
           Math.min(inputRef.current.scrollHeight, 200) + "px";
@@ -125,13 +133,13 @@ export const FormBottom = ({
     if (editingMessageId) {
       await editMessage({
         editingMessageId,
-        currentText,
+        currentText: safeText,
         setEditingMessageId,
         setEditText,
       });
     } else {
       await sendMessage({
-        currentText,
+        currentText: safeText,
         mediaAttachments,
         setMediaAttachments,
         replyingTo,
@@ -145,18 +153,62 @@ export const FormBottom = ({
     clearUploadProgress();
   };
 
-  const { handleKeyDown, handleInput } = useInputHandler(
+  const { handleKeyDown, resizeInput } = useInputHandler(
     isMobile,
     isInputDisabled,
     handleSendMessage
   );
 
-  const handleEmojiSelect = (char, svg) => {
-    const emoji = svg
-      ? `<img src="${svg}" alt="emoji" class="message-emoji" />`
-      : char;
-    setCurrentText((prev) => prev + emoji);
+  const handleInputChange = (e) => {
+    const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
+    setCurrentText(cleanHtml);
+    resizeInput(e.currentTarget);
   };
+
+  const insertHtmlAtCursor = (html) => {
+    const inputEl = inputRef.current;
+    if (!inputEl) {
+      setCurrentText((prev) => sanitizeMessageHtml((prev || "") + html));
+      return;
+    }
+
+    inputEl.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      inputEl.insertAdjacentHTML("beforeend", html);
+    } else {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const fragment = range.createContextualFragment(html);
+      const lastNode = fragment.lastChild;
+      range.insertNode(fragment);
+      if (lastNode) {
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
+    const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
+    inputEl.innerHTML = cleanHtml;
+    setCurrentText(cleanHtml);
+    resizeInput(inputEl);
+  };
+
+  const handleEmojiSelect = (char, svg) => {
+    const imageUrl = svg || getEmojiImageUrl(char);
+    const emoji = imageUrl
+      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" />`
+      : char;
+    insertHtmlAtCursor(emoji);
+  };
+
+  useEffect(() => {
+    if (inputRef.current) {
+      resizeInput(inputRef.current);
+    }
+  }, [currentText, resizeInput]);
 
   const getPlaceholderText = () => {
     if (editingMessageId) return "Редактирование сообщения...";
@@ -231,8 +283,7 @@ export const FormBottom = ({
         <MessageInput
           ref={inputRef}
           value={currentText}
-          onChange={(e) => setCurrentText(e.target.value)}
-          onInput={handleInput}
+          onInput={handleInputChange}
           onKeyDown={handleKeyDown}
           onPaste={(e) => {
             const items = e.clipboardData?.items;

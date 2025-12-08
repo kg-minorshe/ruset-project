@@ -275,6 +275,22 @@
         white-space: pre-wrap;
         line-height: 1.35;
         user-select: text;
+
+        .message-emoji {
+          width: 20px;
+          height: 20px;
+          vertical-align: middle;
+          object-fit: contain;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+          }
+        }
       }
 
       .footer {
@@ -476,9 +492,18 @@
     }
 
     .reaction-emoji {
-      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
       line-height: 1;
-      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      img,
+      &.emoji-icon {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+      }
     }
 
     .reaction-count {

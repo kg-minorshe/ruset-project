@@ -11,10 +11,11 @@ export const useInputHandler = (isMobile, isInputDisabled, onSendMessage) => {
         }
     };
 
-    const handleInput = (e) => {
-        e.target.style.height = "auto";
-        e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+    const resizeInput = (target) => {
+        if (!target) return;
+        target.style.height = "auto";
+        target.style.height = Math.min(target.scrollHeight, 200) + "px";
     };
 
-    return { handleKeyDown, handleInput };
+    return { handleKeyDown, resizeInput };
 };

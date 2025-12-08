@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useRef } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   BiPin,
   BiReply,
@@ -8,6 +8,8 @@ import {
 import { MdDone, MdDoneAll } from "react-icons/md";
 import { BsEye } from "react-icons/bs";
 import { MessageMedia } from "@/components/Chat/MessageMedia/MessageMedia";
+import { EmojiIcon } from "@/components/Chat/Emoji/EmojiIcon";
+import { sanitizeMessageHtml } from "@/utils/emoji";
 
 const MessageItem = memo(
   ({
@@ -31,6 +33,44 @@ const MessageItem = memo(
     setUserProfile,
   }) => {
     const touchStartTimeRef = useRef(null);
+    const safeMessageHtml = useMemo(
+      () => sanitizeMessageHtml(message.text),
+      [message.text]
+    );
+
+    const renderMessageContent = useCallback(() => {
+      if (!safeMessageHtml) return null;
+
+      const parts = safeMessageHtml.split(
+        /(<img[^>]*class="message-emoji"[^>]*>)/gi
+      );
+
+      return parts.map((part, index) => {
+        if (!part) return null;
+
+        if (/<img[^>]*class="message-emoji"[^>]*>/i.test(part)) {
+          const srcMatch = part.match(/src="([^"]+)"/i);
+          const altMatch = part.match(/alt="([^"]*)"/i);
+
+          return (
+            <EmojiIcon
+              key={`emoji-${index}`}
+              emoji={altMatch?.[1] || ""}
+              imageUrl={srcMatch?.[1]}
+              className="message-emoji"
+              size={20}
+            />
+          );
+        }
+
+        return (
+          <span
+            key={`text-${index}`}
+            dangerouslySetInnerHTML={{ __html: part }}
+          />
+        );
+      });
+    }, [safeMessageHtml]);
 
     const getTextReplyTo = useCallback(
       (ms) => {
@@ -164,7 +204,7 @@ const MessageItem = memo(
                 data.count === 1 ? "реакция" : "реакций"
               }`}
             >
-              <span className="reaction-emoji">{emoji}</span>
+              <EmojiIcon emoji={emoji} className="reaction-emoji" size={18} />
               <span className="reaction-count">{data.count}</span>
             </button>
           ))}
@@ -425,7 +465,9 @@ const MessageItem = memo(
             )}
             <div className="columnContent">
               {renderMediaContent()}
-              {message.text && <div className="text">{message.text}</div>}
+              {message.text && (
+                <div className="text">{renderMessageContent()}</div>
+              )}
             </div>
 
             {renderUploadProgress(message)}
