@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "qrcode": "^1.5.4",
+    "rangy": "file:src/vendor/rangy",
     "@capacitor-community/contacts": "^7.0.0",
     "@capacitor-community/http": "^1.4.1",
     "@capacitor/android": "^7.4.2",
