@@ -38,7 +38,10 @@ export const EmojiIcon = ({
           loading="lazy"
           draggable="false"
           onLoad={() => setIsLoading(false)}
-          onError={() => setHasError(true)}
+          onError={() => {
+            setHasError(true);
+            setIsLoading(false);
+          }}
           style={{ opacity: isLoading ? 0 : 1 }}
         />
       </span>
