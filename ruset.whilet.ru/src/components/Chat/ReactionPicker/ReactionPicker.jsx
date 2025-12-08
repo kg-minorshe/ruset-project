@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import "./ReactionPicker.scss";
 import { walert } from "@/utils/miniModal";
+import { EmojiIcon } from "@/components/Chat/Emoji/EmojiIcon";
 export function ReactionPicker({
   visible,
   messageId,
@@ -166,7 +167,7 @@ export function ReactionPicker({
                     : `Добавить реакцию ${emoji}`
                 }
               >
-                {emoji}
+                <EmojiIcon emoji={emoji} className="reaction-emoji" size={24} />
                 {hasReaction && <span className="reaction-indicator">✓</span>}
               </button>
             );

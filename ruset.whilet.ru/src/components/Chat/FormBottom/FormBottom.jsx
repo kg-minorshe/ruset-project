@@ -16,6 +16,7 @@ import { useInputHandler } from "./hooks/useInputHandler";
 import { useMessageSender } from "./hooks/useMessageSender";
 import useMediaRecorder from "./hooks/useMediaRecorder";
 import { useFileUpload } from "./hooks/useFileUpload";
+import { getEmojiImageUrl } from "@/utils/emoji";
 
 import { BiSend, BiPaperclip } from "react-icons/bi";
 
@@ -152,8 +153,9 @@ export const FormBottom = ({
   );
 
   const handleEmojiSelect = (char, svg) => {
-    const emoji = svg
-      ? `<img src="${svg}" alt="emoji" class="message-emoji" />`
+    const imageUrl = svg || getEmojiImageUrl(char);
+    const emoji = imageUrl
+      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" />`
       : char;
     setCurrentText((prev) => prev + emoji);
   };

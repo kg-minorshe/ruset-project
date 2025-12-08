@@ -476,9 +476,18 @@
     }
 
     .reaction-emoji {
-      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
       line-height: 1;
-      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      img,
+      &.emoji-icon {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+      }
     }
 
     .reaction-count {

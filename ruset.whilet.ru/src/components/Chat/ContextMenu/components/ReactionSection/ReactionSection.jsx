@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { BiDotsHorizontalRounded } from "react-icons/bi";
+import { EmojiIcon } from "@/components/Chat/Emoji/EmojiIcon";
 
 const ReactionSection = memo(
   ({ reactions, currentUserReactions, onReactionClick, onShowMore }) => (
@@ -13,7 +14,7 @@ const ReactionSection = memo(
             onClick={() => onReactionClick(emoji)}
             title={currentUserReactions.includes(emoji) ? `Убрать ${emoji}` : `Добавить ${emoji}`}
           >
-            {emoji}
+            <EmojiIcon emoji={emoji} className="reaction-emoji" size={18} />
           </span>
         ))}
         {onShowMore && (
