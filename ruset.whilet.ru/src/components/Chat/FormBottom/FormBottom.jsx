@@ -1,5 +1,5 @@
 // FormBottom.jsx
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./FormBottom.scss";
 import MessageInput from "./components/MessageInput/MessageInput";
 import AttachmentPreview from "./components/AttachmentPreview/AttachmentPreview";
@@ -21,6 +21,11 @@ import {
   hasMessageContent,
   sanitizeMessageHtml,
 } from "@/utils/emoji";
+import {
+  placeCaretAtEnd,
+  restoreSelection,
+  saveSelection,
+} from "@/utils/contentEditableSelection";
 
 import { BiSend, BiPaperclip } from "react-icons/bi";
 
@@ -48,7 +53,7 @@ export const FormBottom = ({
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const savedSelection = useRef(null);
+  const selectionRef = useRef(null);
 
   const { canSendMessages, canSendNow, getSlowModeTimeLeft } = useSlowMode(
     chatInfo,
@@ -159,29 +164,19 @@ export const FormBottom = ({
     isInputDisabled,
     handleSendMessage
   );
-
-  const setSelectionFromRange = (range) => {
-    const selection = window.getSelection();
-    if (!selection || !range) return null;
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-    savedSelection.current = range.cloneRange();
-    return range;
+  const handleInputChange = (e) => {
+    const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
+    setCurrentText(cleanHtml);
+    resizeInput(e.currentTarget);
+    const selection = saveSelection(inputRef.current);
+    if (selection) selectionRef.current = selection;
   };
 
   const captureSelection = () => {
     const inputEl = inputRef.current;
-    const selection = window.getSelection();
-    if (!inputEl || !selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (
-      inputEl.contains(range.startContainer) &&
-      inputEl.contains(range.endContainer)
-    ) {
-      savedSelection.current = range.cloneRange();
-    }
+    if (!inputEl) return;
+    const selection = saveSelection(inputEl);
+    if (selection) selectionRef.current = selection;
   };
 
   useEffect(() => {
@@ -190,46 +185,40 @@ export const FormBottom = ({
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, []);
 
-  const handleInputChange = (e) => {
-    const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
-    setCurrentText(cleanHtml);
-    resizeInput(e.currentTarget);
-    captureSelection();
-  };
+  useLayoutEffect(() => {
+    const inputEl = inputRef.current;
+    if (!inputEl) return;
+    if (!selectionRef.current) return;
+
+    const restored = restoreSelection(inputEl, selectionRef.current);
+    if (!restored) {
+      const fallback = placeCaretAtEnd(inputEl);
+      selectionRef.current = saveSelection(inputEl);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(fallback);
+      }
+    }
+  }, [currentText]);
 
   const getWorkingRange = () => {
     const inputEl = inputRef.current;
     if (!inputEl) return null;
 
-    const selection = window.getSelection();
-    const hasSelection = selection && selection.rangeCount > 0;
-    const activeRange = hasSelection ? selection.getRangeAt(0) : null;
-    if (
-      activeRange &&
-      inputEl.contains(activeRange.startContainer) &&
-      inputEl.contains(activeRange.endContainer)
-    ) {
-      return activeRange.cloneRange();
-    }
+    const restored = restoreSelection(inputEl, selectionRef.current);
+    if (restored) return restored;
 
-    const savedRange = savedSelection.current;
-    if (
-      savedRange &&
-      inputEl.contains(savedRange.startContainer) &&
-      inputEl.contains(savedRange.endContainer)
-    ) {
-      return savedRange.cloneRange();
-    }
-
-    const fallbackRange = document.createRange();
-    fallbackRange.selectNodeContents(inputEl);
-    fallbackRange.collapse(false);
-    return fallbackRange;
+    const selectionRange = document.createRange();
+    selectionRange.selectNodeContents(inputEl);
+    selectionRange.collapse(false);
+    return selectionRange;
   };
 
   const insertHtmlAtCursor = (html) => {
     const inputEl = inputRef.current;
     const safeHtml = sanitizeMessageHtml(html);
+
     if (!inputEl) {
       setCurrentText((prev) => sanitizeMessageHtml((prev || "") + safeHtml));
       return;
@@ -241,7 +230,8 @@ export const FormBottom = ({
 
     const selection = window.getSelection();
     if (selection) {
-      setSelectionFromRange(range);
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
 
     range.deleteContents();
@@ -252,18 +242,21 @@ export const FormBottom = ({
     if (lastNode) {
       range.setStartAfter(lastNode);
       range.collapse(true);
-      setSelectionFromRange(range);
     }
 
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const snapshot = saveSelection(inputEl);
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
     if (cleanHtml !== inputEl.innerHTML) {
       inputEl.innerHTML = cleanHtml;
-      const endRange = document.createRange();
-      endRange.selectNodeContents(inputEl);
-      endRange.collapse(false);
-      setSelectionFromRange(endRange);
+      restoreSelection(inputEl, snapshot) || placeCaretAtEnd(inputEl);
     }
 
+    selectionRef.current = saveSelection(inputEl);
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };
@@ -271,7 +264,7 @@ export const FormBottom = ({
   const handleEmojiSelect = (char, svg) => {
     const imageUrl = svg || getEmojiImageUrl(char);
     const emoji = imageUrl
-      ? `<img src="${imageUrl}" alt="emoji" class="message-emoji" draggable="false" />`
+      ? `<img src="${imageUrl}" alt="${char}" class="message-emoji" draggable="false" />`
       : char;
     insertHtmlAtCursor(emoji);
   };
@@ -380,7 +373,17 @@ export const FormBottom = ({
         />
         {!isRecording && (
           <EmojiButton
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              captureSelection();
+            }}
+            onClick={() => {
+              captureSelection();
+              setShowEmojiPicker(!showEmojiPicker);
+              if (inputRef.current) {
+                requestAnimationFrame(() => inputRef.current.focus());
+              }
+            }}
             disabled={isInputDisabled}
           />
         )}
