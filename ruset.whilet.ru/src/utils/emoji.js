@@ -49,7 +49,12 @@ const sanitizeWithDomParser = (html) => {
         img.setAttribute("alt", child.getAttribute("alt") || "emoji");
         img.setAttribute("class", "message-emoji");
         img.setAttribute("draggable", "false");
+
+        // Добавляем zero-width space до и после эмодзи,
+        // чтобы курсор мог становиться между несколькими изображениями.
+        target.appendChild(doc.createTextNode("\u200b"));
         target.appendChild(img);
+        target.appendChild(doc.createTextNode("\u200b"));
         return;
       }
 
