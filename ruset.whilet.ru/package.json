@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack -H 127.0.0.1 -p 8873",
     "build": "next build",
     "start": "next start --turbopack -p 7012",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare:emoji": "node scripts/copy-emoji-assets.js",
+    "postinstall": "npm run prepare:emoji"
   },
   "dependencies": {
     "qrcode": "^1.5.4",
@@ -40,6 +42,7 @@
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
     "sass": "^1.89.2",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "emoji-datasource-apple": "^15.1.5"
   }
 }
