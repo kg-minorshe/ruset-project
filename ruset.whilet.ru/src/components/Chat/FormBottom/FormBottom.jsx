@@ -160,6 +160,16 @@ export const FormBottom = ({
     handleSendMessage
   );
 
+  const setSelectionFromRange = (range) => {
+    const selection = window.getSelection();
+    if (!selection || !range) return null;
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedSelection.current = range.cloneRange();
+    return range;
+  };
+
   const captureSelection = () => {
     const inputEl = inputRef.current;
     const selection = window.getSelection();
@@ -167,14 +177,18 @@ export const FormBottom = ({
 
     const range = selection.getRangeAt(0);
     if (
-      !inputEl.contains(range.startContainer) ||
-      !inputEl.contains(range.endContainer)
+      inputEl.contains(range.startContainer) &&
+      inputEl.contains(range.endContainer)
     ) {
-      return;
+      savedSelection.current = range.cloneRange();
     }
-
-    savedSelection.current = range.cloneRange();
   };
+
+  useEffect(() => {
+    const handleSelectionChange = () => captureSelection();
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
 
   const handleInputChange = (e) => {
     const cleanHtml = sanitizeMessageHtml(e.currentTarget.innerHTML);
@@ -183,37 +197,33 @@ export const FormBottom = ({
     captureSelection();
   };
 
-  const restoreSelection = () => {
+  const getWorkingRange = () => {
     const inputEl = inputRef.current;
-    const selection = window.getSelection();
-    if (!inputEl || !selection) return null;
+    if (!inputEl) return null;
 
-    const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    const selection = window.getSelection();
+    const hasSelection = selection && selection.rangeCount > 0;
+    const activeRange = hasSelection ? selection.getRangeAt(0) : null;
     if (
-      currentRange &&
-      inputEl.contains(currentRange.startContainer) &&
-      inputEl.contains(currentRange.endContainer)
+      activeRange &&
+      inputEl.contains(activeRange.startContainer) &&
+      inputEl.contains(activeRange.endContainer)
     ) {
-      return currentRange;
+      return activeRange.cloneRange();
     }
 
-    if (savedSelection.current) {
-      const savedRange = savedSelection.current;
-      if (
-        inputEl.contains(savedRange.startContainer) &&
-        inputEl.contains(savedRange.endContainer)
-      ) {
-        selection.removeAllRanges();
-        selection.addRange(savedRange);
-        return savedRange;
-      }
+    const savedRange = savedSelection.current;
+    if (
+      savedRange &&
+      inputEl.contains(savedRange.startContainer) &&
+      inputEl.contains(savedRange.endContainer)
+    ) {
+      return savedRange.cloneRange();
     }
 
     const fallbackRange = document.createRange();
     fallbackRange.selectNodeContents(inputEl);
     fallbackRange.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(fallbackRange);
     return fallbackRange;
   };
 
@@ -226,38 +236,34 @@ export const FormBottom = ({
     }
 
     inputEl.focus();
-    const selection = window.getSelection();
-    const range = restoreSelection();
+    let range = getWorkingRange();
+    if (!range) return;
 
-    if (range) {
-      range.deleteContents();
-      const fragment = range.createContextualFragment(safeHtml);
-      const lastNode = fragment.lastChild;
-      range.insertNode(fragment);
-      if (lastNode && selection) {
-        range.setStartAfter(lastNode);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        savedSelection.current = range.cloneRange();
-      }
-    } else {
-      inputEl.insertAdjacentHTML("beforeend", safeHtml);
+    const selection = window.getSelection();
+    if (selection) {
+      setSelectionFromRange(range);
+    }
+
+    range.deleteContents();
+    const fragment = range.createContextualFragment(safeHtml);
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      setSelectionFromRange(range);
     }
 
     const cleanHtml = sanitizeMessageHtml(inputEl.innerHTML);
     if (cleanHtml !== inputEl.innerHTML) {
       inputEl.innerHTML = cleanHtml;
-      const selectionAfterSanitize = window.getSelection();
-      if (selectionAfterSanitize) {
-        selectionAfterSanitize.removeAllRanges();
-        const endRange = document.createRange();
-        endRange.selectNodeContents(inputEl);
-        endRange.collapse(false);
-        selectionAfterSanitize.addRange(endRange);
-        savedSelection.current = endRange.cloneRange();
-      }
+      const endRange = document.createRange();
+      endRange.selectNodeContents(inputEl);
+      endRange.collapse(false);
+      setSelectionFromRange(endRange);
     }
+
     setCurrentText(cleanHtml);
     resizeInput(inputEl);
   };

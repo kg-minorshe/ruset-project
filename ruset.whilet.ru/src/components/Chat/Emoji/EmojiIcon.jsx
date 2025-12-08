@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getEmojiImageUrl } from "@/utils/emoji";
 import "./EmojiIcon.scss";
 
@@ -15,11 +15,19 @@ export const EmojiIcon = ({
   );
   const [isLoading, setIsLoading] = useState(!!resolvedImage);
   const [hasError, setHasError] = useState(false);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     setIsLoading(!!resolvedImage);
     setHasError(false);
   }, [resolvedImage, emoji]);
+
+  useEffect(() => {
+    if (!imgRef.current) return;
+    if (imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setIsLoading(false);
+    }
+  }, [resolvedImage]);
 
   if (resolvedImage && !hasError) {
     return (
@@ -30,12 +38,15 @@ export const EmojiIcon = ({
       >
         {isLoading && <span className="emoji-loader" aria-hidden="true" />}
         <img
+          ref={imgRef}
           src={resolvedImage}
           alt={emoji}
           className="emoji-icon"
           width={size}
           height={size}
-          loading="lazy"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           draggable="false"
           onLoad={() => setIsLoading(false)}
           onError={() => {
