@@ -47,7 +47,7 @@ async function loadDatabase(csvPath) {
     const startTime = Date.now();
 
     if (!fs.existsSync(csvPath)) {
-      reject(new Error(`Файл базы данных не найден: ${csvPath}`));
+      console.error("Файл базы данных не найден: ${csvPath}");
       return;
     }
 
