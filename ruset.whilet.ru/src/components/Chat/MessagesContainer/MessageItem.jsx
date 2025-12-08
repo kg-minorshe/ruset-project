@@ -8,6 +8,7 @@ import {
 import { MdDone, MdDoneAll } from "react-icons/md";
 import { BsEye } from "react-icons/bs";
 import { MessageMedia } from "@/components/Chat/MessageMedia/MessageMedia";
+import { EmojiIcon } from "@/components/Chat/Emoji/EmojiIcon";
 
 const MessageItem = memo(
   ({
@@ -164,7 +165,7 @@ const MessageItem = memo(
                 data.count === 1 ? "реакция" : "реакций"
               }`}
             >
-              <span className="reaction-emoji">{emoji}</span>
+              <EmojiIcon emoji={emoji} className="reaction-emoji" size={18} />
               <span className="reaction-count">{data.count}</span>
             </button>
           ))}

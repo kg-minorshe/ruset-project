@@ -50,6 +50,11 @@
         min-width: 36px;
         min-height: 36px;
 
+        .reaction-emoji {
+          width: 24px;
+          height: 24px;
+        }
+
         &:hover {
           background: var(--hover-color);
           transform: scale(1.2);
@@ -74,6 +79,11 @@
           min-width: 32px;
           min-height: 32px;
           padding: 6px;
+
+          .reaction-emoji {
+            width: 22px;
+            height: 22px;
+          }
         }
       }
     }

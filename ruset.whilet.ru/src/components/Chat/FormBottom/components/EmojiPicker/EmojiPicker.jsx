@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import "../../FormBottom.scss";
 import emojiCategories from "../../data/emoji.json";
+import { getEmojiImageUrl } from "@/utils/emoji";
 export function EmojiPicker({ onSelect, onClose }) {
   const [activeCategory, setActiveCategory] = useState(0);
   const pickerRef = useRef(null);
@@ -35,20 +36,29 @@ export function EmojiPicker({ onSelect, onClose }) {
         ))}
       </div>
       <div className="emoji-grid">
-        {emojiCategories[activeCategory].emojis.map((emoji, index) => (
-          <button
-            key={index}
-            className="emoji-item"
-            onClick={() => onSelect(emoji.char, emoji.svg)}
-            title={emoji.name}
-          >
-            {emoji.svg ? (
-              <img src={emoji.svg} alt={emoji.name} className="emoji-svg" />
-            ) : (
-              <span className="emoji-char">{emoji.char}</span>
-            )}
-          </button>
-        ))}
+        {emojiCategories[activeCategory].emojis.map((emoji, index) => {
+          const imageUrl = emoji.svg || getEmojiImageUrl(emoji.char);
+
+          return (
+            <button
+              key={index}
+              className="emoji-item"
+              onClick={() => onSelect(emoji.char, imageUrl)}
+              title={emoji.name}
+            >
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={emoji.name}
+                  className="emoji-svg"
+                  loading="lazy"
+                />
+              ) : (
+                <span className="emoji-char">{emoji.char}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
